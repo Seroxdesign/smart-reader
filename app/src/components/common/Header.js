@@ -18,12 +18,10 @@ import { getNetwork } from '@wagmi/core';
 import { useWeb3Modal } from '@web3modal/react';
 import { CheckCircle2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useAccount, useDisconnect, useNetwork, useSwitchNetwork } from 'wagmi';
+import { useAccount, useSwitchNetwork } from 'wagmi';
 import { mainnet } from 'wagmi/chains';
-import useLogin from '../../hooks/useLogin';
-import { shortenAddress, validateContractAddress, lowercaseAddress } from '../../utils/helpers';
+import { lowercaseAddress } from '../../utils/helpers';
 import { NavLink as RouterLink } from "react-router-dom";
-import { Icon } from '@iconify/react';
 import { ConnectButton} from '../ConnectButton';
 
 
@@ -33,13 +31,11 @@ export const Header = ({ address, setAddress, setFetching }) => {
   const {
     address: userAddress,
   } = useAccount();
-  const { chain: networkChain, chains: networkChains } = useNetwork();
   const { chain, chains } = getNetwork();
   const {
     chains: switchNetworkChains,
     switchNetwork,
     isLoading: isSwitchingNetwork,
-    pendingChainId,
     error: switchNetworkError,
   } = useSwitchNetwork();
   const [validationResult, setValidationResult] = useState({
@@ -52,13 +48,6 @@ export const Header = ({ address, setAddress, setFetching }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-    // TODO: need a way to check if the user is on the right network and switch network to mainnet if not. this just went into an infinite loop
-    // useEffect(() => {
-    //     if (userAddress && (chain?.id !== 1 || chain?.id !== 137)) {
-    //         switchNetwork(1);
-    //     }
-    // }, [userAddress]);
-
   const [pageName, setPageName] = useState(undefined);
   // useEffect that gets the current url and sets the page name
 
@@ -69,38 +58,8 @@ export const Header = ({ address, setAddress, setFetching }) => {
   }, []);
 
   useEffect(() => {
-      handlePageName();
-  });
-
-
-  useEffect(() => {
-    if (pageName === 'about') {
-      return;
-    }
-    if (address && pageName === '') {
-      validateContractAddress(
-        address,
-        userAddress,
-        validationResult,
-        setValidationResult
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, chain?.id]);
-
-  useEffect(() => {
-    if (userAddress && address && validationResult.message !== '') {
-        toast({
-            title: 'Contract validation',
-            description: validationResult.message,
-            status: validationResult.result ? 'success' : 'error',
-            duration: 5000,
-            isClosable: true,
-        });
-
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [validationResult]);
+    handlePageName();
+  }, []);
 
   return (
     <Flex
@@ -117,10 +76,10 @@ export const Header = ({ address, setAddress, setFetching }) => {
       justifyContent="space-between"
       zIndex={50}
     >
-          <Box>
-              <RouterLink to="/">
-                  <Image src="images/logo.svg" w={8} h={8} alt="SmartReader logo" />
-                  </RouterLink>
+      <Box>
+        <RouterLink to="/">
+          <Image src="images/logo.svg" w={8} h={8} alt="SmartReader logo" />
+        </RouterLink>
       </Box>
       <Flex alignItems="center" flexWrap="wrap" gap={6}>
         <Box w={{ base: 'full', lg: 'auto' }}>
@@ -146,18 +105,21 @@ export const Header = ({ address, setAddress, setFetching }) => {
                   : 'none'
               }
               onChange={(e) => {
-                setAddress(e.target.value);
-                validateContractAddress(
-                  address,
-                  userAddress,
-                  validationResult,
-                  setValidationResult
-                );
+               if (e.target.value.length === 42 && e.target.value.startsWith('0x')) {
+                  setAddress(e.target.value);
+               } else {
+                toast({
+                  title: 'Invalid contract address',
+                  description: 'Please enter a valid contract address',
+                  status: 'info',
+                  duration: 5000,
+                  isClosable: true,
+                })
+               }
+              
                 setFetching(true);
-                e.target.value.length === 0 &&
-                  setValidationResult({ result: false, message: '' });
               }}
-                          isDisabled={isSwitchingNetwork || !userAddress}
+              isDisabled={!userAddress}
             />
 
             <InputRightElement width="8rem" justifyContent="flex-end" mr={2}>

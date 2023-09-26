@@ -1,5 +1,5 @@
-import { Flex, Box } from '@chakra-ui/react';
-import React, { useEffect, useState } from 'react';
+import { Flex } from '@chakra-ui/react';
+import React, { useState } from 'react';
 import { useNetwork, useAccount } from 'wagmi';
 import { Content } from './Content';
 import { Header } from '../common/Header';
@@ -26,6 +26,7 @@ export const Main = () => {
         setFetching={setFetching}
       />
       <Content
+        key={`${chain?.id}-${address}`}
         address={address}
         fetching={fetching}
         setFetching={setFetching}

@@ -6,7 +6,6 @@ import Cookies from 'js-cookie';
 import { useWeb3Modal } from '@web3modal/react'
 import { shortenAddress, lowercaseAddress } from '../utils/helpers'
 import useLogin from '../hooks/useLogin';
-import { set } from 'date-fns';
 
 export const ConnectButton = ({ address, setAddress, cta, isSimple = false }) => {
     const toast = useToast();
@@ -132,7 +131,7 @@ export const ConnectButton = ({ address, setAddress, cta, isSimple = false }) =>
         if (isLoggedIn) {
             console.log('useeffect logged in?', { loggedIn });
         }
-    }, [isLoggedIn]);
+    }, []);
 
 
 

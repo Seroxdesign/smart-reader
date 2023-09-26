@@ -34,6 +34,7 @@ const validateContractAddress = (
   user,
   validationResult,
   setValidationResult,
+  setAddress,
   toast
 ) => {
   let message = '';
@@ -73,6 +74,7 @@ const validateContractAddress = (
           message,
         };
       }
+      setAddress(input)
     });
     message = 'Address is valid';
   } else if (input.length < 42 && input.startsWith('0x')) {

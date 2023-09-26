@@ -237,7 +237,16 @@ export const SimulateTransaction = ({
               />
             </Box>
           ))}
-          <Button isDisabled={!simulationReady} onClick={transaction}>
+          <Button isDisabled={!simulationReady} onClick={transaction}
+          sx=
+          {{
+            backgroundColor: '#101D42',
+            color: 'white',
+            _hover: {
+              backgroundColor: '#101D88',
+            }
+          }}
+          >
             Simulate Transaction
           </Button>
           <Flex justifyContent="center">

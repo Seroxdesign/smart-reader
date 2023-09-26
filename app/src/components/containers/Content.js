@@ -43,7 +43,6 @@ export const Content = ({ address, fetching, setFetching }) => {
   const [highlightedFunction, setHighlightedFunction] = useState(null);
   const [selectedFunctionName, setSelectedFunctionName] = useState(null);
   const [selectedFunctionCode, setSelectedFunctionCode] = useState(null);
-  const [selectedDependencyName, setSelectedDependencyName] = useState(null);
 
   const [isLoadingContract, setIsLoadingContract] = useState(false);
   const [isLoadingFunction, setIsLoadingFunction] = useState(false);
@@ -54,11 +53,9 @@ export const Content = ({ address, fetching, setFetching }) => {
     name: '',
     code: '',
   });
-  const [inspectDependency, setInspectDependency] = useState({
-    name: '',
-    code: '',
-  });
+
   const { chain } = useNetwork();
+
   const network = chain?.name?.toLowerCase();
   const { address: userAddress, isConnected } = useAccount();
 
@@ -79,10 +76,6 @@ export const Content = ({ address, fetching, setFetching }) => {
     message: '',
   });
 
-  const mainContentRef = useRef(null);
-  const { supabase } = useSupabase();
-  const toast = useToast();
-
   useEffect(() => {
     if (address && address.length > 0) {
       validateContractAddress(
@@ -95,6 +88,10 @@ export const Content = ({ address, fetching, setFetching }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, chain?.id]);
 
+
+  const mainContentRef = useRef(null);
+  const { supabase } = useSupabase();
+  const toast = useToast();
 
   useEffect(() => {
     if (sourceCode && sourceCode.length > 0) {
@@ -116,11 +113,6 @@ export const Content = ({ address, fetching, setFetching }) => {
 
   const fetchExplanation = useCallback(
     async (dep, code, type, arrayId = '') => {
-      // const relay = new GelatoRelay();
-
-      // const result = await getExplanation(address, inspectContract.name);
-
-      // console.log('getExplanation in fetchExplanation', result);
 
       let fileExplanationSuccess = false;
 
@@ -196,7 +188,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               'Bearer ' + String(process.env.REACT_APP_OPENAI_API_KEY),
           },
           body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
+            model: 'gpt-3.5-turbo-16k',
             messages: [
               { role: 'system', content: 'You are a great teacher.' },
               {
@@ -205,7 +197,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               },
             ],
             temperature: 0.3,
-            max_tokens: 3000,
+            max_tokens: 2000,
           }),
         };
 
@@ -481,6 +473,7 @@ export const Content = ({ address, fetching, setFetching }) => {
   }, [address, fetchCreatorAndCreation]);
 
   const fetchTokenData = useCallback(async (address) => {
+    console.log('fetching token data', address, chain?.id, alchemyUrl, ALCHEMY_API_KEY)
     try {
         const apiUrl = `${alchemyUrl}${ALCHEMY_API_KEY}`;
         if (!address) return null;
@@ -533,12 +526,20 @@ export const Content = ({ address, fetching, setFetching }) => {
       [setSourceCode, setContractABI],
       async () => {
         try {
-          const resp = await axios.get(
+          let resp = await axios.get(
             `https://${blockExplorerApi}?module=contract&action=getsourcecode&address=${address}&apikey=${APIKEY}`
           );
           let sourceObj;
           let contracts;
           let contractsArray;
+          console.log('seeee', resp.data.result[0])
+          if (resp.data.result[0].Implementation) {
+            const message = `This is an implementation address, using the proxy address instead. ${resp.data.result[0].Implementation}`;
+            console.log(message);
+            resp = await axios.get(
+              `https://${blockExplorerApi}?module=contract&action=getsourcecode&address=${resp.data.result[0].Implementation}&apikey=${APIKEY}`
+            );
+          }
           if (!resp.data.result[0].SourceCode) {
             const message = `No source code found for ${address}. Are you on the correct network?`;
             setValidationResult({
@@ -571,10 +572,6 @@ export const Content = ({ address, fetching, setFetching }) => {
             source_code: contractsArray,
             abi: addressABI,
           };
-          // while (!inspectContract) {
-          //   // console.log('In here');
-          //   await new Promise((resolve) => setTimeout(resolve, 100));
-          // }
 
           fetchExplanation(
             false,
@@ -609,10 +606,11 @@ export const Content = ({ address, fetching, setFetching }) => {
   useEffect(() => {
     setExplanationError('');
     setContractExplanation('');
-    if (fetching) {
+
+
       fetchTokenData(address);
       fetchSourceCode();
-    }
+    
   }, [fetching, fetchSourceCode, setFetching, address, chain?.id, fetchTokenData]);
 
   const handleContractChange = useCallback(
@@ -660,6 +658,7 @@ export const Content = ({ address, fetching, setFetching }) => {
             while (!closingBraceRegex.test(codeLines[endIndex].innerText)) {
               endIndex++;
             }
+         
             const highlightedLines = Array.from(codeLines).slice(
               startIndex,
               endIndex + 1
@@ -668,12 +667,32 @@ export const Content = ({ address, fetching, setFetching }) => {
               line.classList.add('highlight');
             });
             setHighlightedFunction(highlightedLines);
-
             const highlightedText = highlightedLines
               .slice(1)
               .map((line) => line.innerText.trim())
-              .join('\n');
-            setSelectedFunctionCode(highlightedText);
+              
+            function formatCode(arr) {
+              let formattedCode = '';
+              let lastLineNumber = -1;
+              for (let i = 0; i < arr.length; i++) {
+                  if (arr[i] !== '') {
+                      
+                      if (!isNaN(parseInt(arr[i])) && +arr[i] !== 0) {
+                        const lineNumber = parseInt(arr[i]);
+                        if (lineNumber !== lastLineNumber) {
+                            formattedCode += '\n' + arr[i]
+                            lastLineNumber = lineNumber;
+                        }
+                      } else {
+                          formattedCode += arr[i] + ' ';
+                      }
+                  }
+              }
+              return formattedCode.trim();
+            }
+            const formattedCode = formatCode(highlightedText);
+            console.log(formattedCode,'formatted')
+            setSelectedFunctionCode(formattedCode);
           }
           if (foundFunction) {
             let nextSpan = span.nextElementSibling;
@@ -758,14 +777,6 @@ export const Content = ({ address, fetching, setFetching }) => {
       explanation.function,
       selectedFunctionName
     );
-    // let formattedCode = '';
-    // if (inspectFunction && inspectFunction.code) {
-    //   const formattedCode = prettier.format(inspectContract.code, {
-    //     parser: 'typescript',
-    //     plugins: [typescript],
-    //   });
-    //
-    // }
   }, [
     selectedFunctionName,
     selectedFunctionCode,
@@ -793,10 +804,9 @@ export const Content = ({ address, fetching, setFetching }) => {
 
       {!userAddress ? (
         <Intro />
-
       ) : (
           <>
-            <ContractMetaData
+      <ContractMetaData
         contractName={contractName}
         validationResult={validationResult}
         address={address}
@@ -807,8 +817,8 @@ export const Content = ({ address, fetching, setFetching }) => {
         blockExplorerUrl={blockExplorerUrl}
         contractCreation={contractCreation}
         isFetchingCreator={isFetchingCreator}
-              value={value}
-              tokenData={tokenData}
+        value={value}
+        tokenData={tokenData}
       />
       <Files
         sourceCode={sourceCode}
@@ -825,6 +835,7 @@ export const Content = ({ address, fetching, setFetching }) => {
           inspectContract={inspectContract}
           handleCodeHover={handleCodeHover}
           handleCodeClick={handleCodeClick}
+          id={`${chain?.id}-${address}`}
         />
         <CodeExplanation
           contractExplanation={contractExplanation}

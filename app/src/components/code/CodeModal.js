@@ -24,9 +24,8 @@ export default function CodeModal({
       <ModalContent
         minW="800px"
         w="75%"
-        maxH="calc(100% - 80px)"
         borderRadius={16}
-        overflow={'hidden'}
+        overflow={'y'}
       >
         <ModalHeader
           background="#262545"
@@ -77,9 +76,10 @@ export default function CodeModal({
                         }}
                     >
                       <SyntaxHighlighter
-                        language="solidity"
+                        language="javascript"
                         style={dracula}
-                          wrapLines={true}
+                        wrapLines={true}
+                        wrapLongLines={true}
                       >
                         {inspectFunction.code ? inspectFunction.code : ''}
                       </SyntaxHighlighter>

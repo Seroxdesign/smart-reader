@@ -1,54 +1,17 @@
-import { Heading, List, Stack, Flex, Avatar, Input, Button, Box } from '@chakra-ui/react';
+import { Heading, List, Stack, Flex, Avatar, Input, Button, Box, useToast } from '@chakra-ui/react';
 import { createClient } from '@supabase/supabase-js';
 import Cookies from 'js-cookie';
 import React, { useCallback, useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useAccount } from 'wagmi';
 import { Comment } from './Comment';
-// import { Button, Spinner } from '@chakra-ui/react';
 import { formatDistanceToNow } from 'date-fns';
 import jwtDecode from 'jwt-decode';
 import useLogin from '../../hooks/useLogin';
-import { ConnectButton, LoginButton } from '../ConnectButton';
+import { ConnectButton } from '../ConnectButton';
 import { lowercaseAddress } from '../../utils/helpers';
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
-
-const examplecomments = [
-  {
-    name: 'amyrobson',
-    timeAgo: '1 month ago',
-    upvotes: 12,
-    message:
-      'Impressive! Though it seems the drag feature could be improved. But overall it looks incredible. You’ve nailed the design and the responsiveness at various breakpoints works really well.',
-    ref: true,
-  },
-  {
-    name: 'amyrobson',
-    timeAgo: '1 month ago',
-    upvotes: 12,
-    message:
-      'Impressive! Though it seems the drag feature could be improved. But overall it looks incredible. You’ve nailed the design and the responsiveness at various breakpoints works really well.',
-    ref: false,
-  },
-  {
-    name: 'amyrobson',
-    timeAgo: '1 month ago',
-    upvotes: 12,
-    message:
-      'Impressive! Though it seems the drag feature could be improved. But overall it looks incredible. You’ve nailed the design and the responsiveness at various breakpoints works really well.',
-    ref: true,
-  },
-  {
-    name: 'amyrobson',
-    timeAgo: '1 month ago',
-    upvotes: 12,
-    message:
-      'Impressive! Though it seems the drag feature could be improved. But overall it looks incredible. You’ve nailed the design and the responsiveness at various breakpoints works really well.',
-    ref: false,
-  },
-];
 
 export const Comments = ({ chainId, contractAddress }) => {
   const [comment, setComment] = useState(''); // Initial state
@@ -56,12 +19,11 @@ export const Comments = ({ chainId, contractAddress }) => {
   const {
     address: userAddress,
     isConnected,
-    isConnecting,
     isDisconnected,
   } = useAccount();
-    const [addressFromButton, setAddressFromButton] = useState('');
+  const [addr, setAddressFromButton] = useState('');
   const { isLoggedIn, supabase, setIsLoggedIn, checkLoggedIn } = useLogin();
-
+  const toast = useToast();
   // function to make username from wallet address after removing the 0x
   function makeUsername(address) {
     let username = address.slice(2);
@@ -69,7 +31,7 @@ export const Comments = ({ chainId, contractAddress }) => {
     return username;
   }
 
-  const username = makeUsername(userAddress);
+  const username = userAddress && makeUsername(userAddress);
 
   const getComments = useCallback(async () => {
     //   async function getComments() {
@@ -80,7 +42,6 @@ export const Comments = ({ chainId, contractAddress }) => {
       .eq('contract_id', chainId + '-' + contractAddress)
       .is('parent', null);
     if (error) console.log('Error: ', error);
-    console.log({ commentData });
     if (!commentData) return;
     // Map the data into the desired format
     const commentsNew = [];
@@ -102,18 +63,20 @@ export const Comments = ({ chainId, contractAddress }) => {
       });
     }
     setComments(commentsNew);
-  }, [contractAddress, chainId, supabase]);
+  }, [contractAddress, chainId]);
 
   useEffect(() => {
     getComments();
     checkLoggedIn();
-  }, [chainId, contractAddress, getComments, checkLoggedIn]);
+  }, [chainId, contractAddress]);
 
-  async function addComment() {
+ const addComment = useCallback(async () => {
     const token = Cookies.get('supabasetoken');
     if (!comment || comment.length === 0) {
       return;
     }
+
+    setComment('')
 
     const headers = {
       Authorization: `Bearer ${token}`,
@@ -133,7 +96,6 @@ export const Comments = ({ chainId, contractAddress }) => {
     // Check if it's expired
     const currentTime = Date.now() / 1000; // in seconds
     if (decodedToken.exp < currentTime) {
-      console.log('Token is expired');
       setIsLoggedIn(false);
       return;
     }
@@ -146,32 +108,22 @@ export const Comments = ({ chainId, contractAddress }) => {
       .from('comments')
       .insert([commentToUpload]);
     if (insertError && !insertedData) {
-      console.log('Insert Error: ', insertError);
-      // tried this, it doesn't fix
-      // console.log('trying again');
-      // const { data: insertedData2ndAttempt, error: insertError2ndAttempt } =
-      //   await newSupabase.from('comments').insert([commentToUpload]);
-      // if (insertError2ndAttempt && !insertedData2ndAttempt) {
-      //   console.log('Insert Error: ', insertError2ndAttempt);
-      // }
       return;
     }
+    toast({
+      title: 'Comment added',
+      description: 'Your comment has been added.',
+      status: 'success',
+      duration: 5000,
+      isClosable: true,
+    })
+  
     getComments();
+  }, [comment])
 
-  }
 
   return (
     <>
-      {isConnected && (
-        <>
-          {!isLoggedIn && (
-            <Box py={6} px={8} bg="blackAlpha.300" w="full" textAlign="left" borderRadius="lg">
-              <p>Please <LoginButton /> to be able to add a comment</p>
-            </Box>
-          )}
-
-        </>
-      )}
       {isDisconnected && (
         <Box p="xl" bg="blackAlpha.300" w="full" textAlign="left" borderRadius="lg">
           <p>In order to leave a comment, you need to <ConnectButton address={userAddress} setAddress={setAddressFromButton} cta="connect wallet" isSimple /> first.</p>
@@ -181,7 +133,7 @@ export const Comments = ({ chainId, contractAddress }) => {
         <Heading as="h1" size="md" fontWeight={600} noOfLines={1}>
           COMMENTS ({comments.length})
         </Heading>
-        {isLoggedIn && (
+        {isConnected && (
           <Flex
             alignItems="center"
             background="#FFFFFF1A"
@@ -201,7 +153,7 @@ export const Comments = ({ chainId, contractAddress }) => {
               _hover={{ background: '#00000026' }}
               _placeholder={{ color: '#ADADAD' }}
               borderRadius="lg"
-              isDisabled={!isLoggedIn}
+              isDisabled={!isConnected}
             />
             <Button
               borderRadius="full"
@@ -209,15 +161,15 @@ export const Comments = ({ chainId, contractAddress }) => {
               color="#101D42"
               fontWeight={400}
               onClick={addComment}
-              isDisabled={!isLoggedIn}
+              isDisabled={!isConnected}
             >
               Send
             </Button>
           </Flex>
         )}
         <List spacing={4}>
-          {comments.map((comment) => (
-            <Comment key={uuidv4()} comment={comment} />
+          {comments.map((com, i) => (
+            <Comment key={`id-comments-${i}-${chainId}-${contractAddress}`} comment={com} />
           ))}
         </List>
       </Stack>
