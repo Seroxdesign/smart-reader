@@ -18,17 +18,17 @@ import {
 } from '@chakra-ui/react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { SimulateTransaction } from './SimulateTransaction';
+import { SimulateTransaction } from '../SimulateTransaction';
 import axios from 'axios';
-import { uploadJSON } from '../utils/ipfs';
+import { uploadJSON } from '../../utils/ipfs';
 import { useAccount, useSigner, useNetwork } from 'wagmi';
-import { getExplanation } from '../utils/queries';
-import { ipfsGateway } from '../utils/constants';
-import { getContract } from '../utils/contract';
+import { getExplanation } from '../../utils/queries';
+import { ipfsGateway } from '../../utils/constants';
+import { getContract } from '../../utils/contract';
 import { GelatoRelay } from '@gelatonetwork/relay-sdk';
-import chainInfo from '../utils/chainInfo';
+import chainInfo from '../../utils/chainInfo';
 import { ChatIcon } from '@chakra-ui/icons';
-import { Annotate } from './Annotate';
+import { Annotate } from '../Annotate';
 
 const functionMessages = [
   'Deciphering the function',
@@ -62,7 +62,6 @@ export const Reader = ({ address, fetching, setFetching }) => {
     name: '',
     code: '',
   });
-  console.log('inspectContract', inspectContract);
   const { chain } = useNetwork();
   const network = chain?.name?.toLowerCase();
   const { address: userAddress, isConnected } = useAccount();
@@ -84,35 +83,7 @@ export const Reader = ({ address, fetching, setFetching }) => {
     async (code, type) => {
       const relay = new GelatoRelay();
 
-      const result = await getExplanation(address, inspectContract.name);
-
-      console.log('getExplanation in fetchExplanation', result);
-
       let fileExplanationSuccess = false;
-      // if (result?.length > 0) {
-      //   const fileExplanationPromise = new Promise((resolve, reject) => {
-      //     axios
-      //       .get(ipfsGateway + '/' + result[0].ipfsSchema)
-      //       .then((response) => {
-      //         console.log('DID IT WORK? ', response.data);
-      //         setContractExplanation(response.data.fileExplanation);
-      //         resolve(true);
-      //       })
-      //       .catch((error) => {
-      //         console.log(
-      //           'Error fetching IPFS content:',
-      //           error.response.data.error
-      //         );
-      //         reject(false);
-      //       });
-      //   });
-
-      //   fileExplanationSuccess = await fileExplanationPromise;
-      // } else {
-      //   fileExplanationSuccess = false;
-      // }
-
-      console.log('lol');
 
       let content;
       if (!fileExplanationSuccess) {
@@ -145,11 +116,9 @@ export const Reader = ({ address, fetching, setFetching }) => {
           }),
         };
 
-        console.log('fetchhh');
         fetch('https://api.openai.com/v1/chat/completions', requestOptions)
           .then((response) => response.json())
           .then(async (data) => {
-            console.log('data', data);
             if (type === explanation.contract) {
               setContractExplanation(data.choices[0].message.content);
               setIsLoadingContract(false);
@@ -161,9 +130,7 @@ export const Reader = ({ address, fetching, setFetching }) => {
                 inspectContract?.name,
                 data.choices[0].message.content
               );
-              console.log('uploadResult', uploadResult);
               const smartReader = getContract(network, signer);
-              console.log('inspectContract3', inspectContract?.name);
               const { data: sponsoredData } =
                 await smartReader.populateTransaction.addContract(
                   address,
@@ -181,9 +148,7 @@ export const Reader = ({ address, fetching, setFetching }) => {
                 sponsoredCallRequest,
                 process.env.REACT_APP_GELATO_API_KEY
               );
-              console.log('Gelato relay result: ', relayResponse);
             } else {
-              console.log('data.choices[0]', data.choices[0]);
               setFunctionExplanation(data.choices[0].message.content);
               setIsLoadingFunction(false);
             }
@@ -262,11 +227,9 @@ export const Reader = ({ address, fetching, setFetching }) => {
         contractsArray[0].sourceCode.content,
         explanation.contract
       );
-      console.log('name', contractsArray[0].name);
       setFetching(false);
     } catch (err) {
       // Handle Error Here
-      console.log('fetch source code error', err);
       setFetching(false);
       setSourceCode([]);
       setInspectContract(undefined);

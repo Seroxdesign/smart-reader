@@ -1,117 +1,48 @@
-import { CopyIcon } from '@chakra-ui/icons';
-import { Comments } from './Comments';
-import { Files } from './Files';
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from 'react';
 import {
-  TabPanel,
-  TabPanels,
-  Tabs,
-  Text,
-  useTab,
-  TabList,
   Flex,
-  Badge,
-  Box,
-  Select,
-  Spinner,
-  Image,
   Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
   ModalBody,
   ModalCloseButton,
-  useDisclosure,
-  useClipboard,
-  Button,
-  Code,
-  Heading,
-  Link,
+  ModalContent,
+  ModalHeader,
+  ModalOverlay,
   Stack,
+  useClipboard,
+  useDisclosure,
+  useToast,
 } from '@chakra-ui/react';
+import axios from 'axios';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { SimulateTransaction } from './SimulateTransaction';
-import axios from 'axios';
-import {
-  useAccount,
-  useNetwork,
-  useWalletClient,
-} from 'wagmi';
-import chainInfo from '../utils/chainInfo';
-import { ipfsGateway, contractsDatabase } from '../utils/constants';
-import { ArrowUpIcon, ChatIcon } from '@chakra-ui/icons';
-import { Annotate } from './Annotate';
-import { shortenAddress, validateContractAddress } from '../utils/helpers';
-import { useSupabase } from '../utils/supabaseContext';
-import { isContract } from '../utils/helpers.js';
-
-const functionMessages = [
-  'Deciphering the function',
-  'Unpacking the function',
-  'Analyzing the function',
-  'Interpreting the function',
-  'Uncovering the function',
-];
-
-const contractMessages = [
-  "Unravelling the contract's source code",
-  "Cracking the contract's source code",
-  "Decoding the contract's source code",
-  "Decrypting the contract's source code",
-  "Unveiling the contract's source code",
-];
-
-const dependencyMessages = [
-  'Unravelling the dependency',
-  'Cracking the dependency',
-  'Analyzing the dependency',
-  'Interpreting the dependency',
-  'Uncovering the dependency',
-];
-
-const CustomTab = React.forwardRef((props, ref) => {
-  const tabProps = useTab({ ...props, ref });
-  const isSelected = !!tabProps['aria-selected'];
-  const isDisabled = !!tabProps['aria-disabled'];
-  const bg = isDisabled ? 'red' : isSelected ? '#FFFFFF40' : 'transparent';
-  const bgHover = isDisabled ? 'transparent' : '#ffffff40';
-  const cursor = isDisabled ? 'not-allowed' : 'pointer';
-  return (
-    <Button
-      size="sm"
-      w="full"
-      variant="solid"
-      borderRadius="xl"
-      background={bg}
-      cursor={cursor}
-      _hover={{ background: bgHover }}
-      fontWeight={400}
-      isDisabled={isDisabled}
-      {...tabProps}
-    >
-      {tabProps.children}
-    </Button>
-  );
-});
+import { useAccount, useNetwork, useWalletClient } from 'wagmi';
+import chainInfo from '../../utils/chainInfo';
+import { contractsDatabase } from '../../utils/constants';
+import { validateContractAddress } from '../../utils/helpers';
+import { isContract } from '../../utils/helpers.js';
+import { useSupabase } from '../../utils/supabaseContext';
+import { Annotate } from '../Annotate';
+import { Comments } from '../comments/Comments';
+import { Files } from '../contract/Files';
+import ConnectWalletWarning from '../common/ConnectWalletWarning';
+import ContractMetaData from '../contract/ContractMetaData';
+import CodeReader from '../code/CodeReader';
+import CodeExplanation from '../code/CodeExplanation';
+import CodeModal from '../code/CodeModal';
+import Intro from '../Intro';
+import { functionMessages, contractMessages, explanation } from '../../utils/constants';
 
 export const Content = ({ address, fetching, setFetching }) => {
   const [contractABI, setContractABI] = useState([]);
   const [contractExplanation, setContractExplanation] = useState('');
   const [contractName, setContractName] = useState('No contract');
+  const [tokenData, setTokenData] = useState(null)
   const [functionExplanation, setFunctionExplanation] = useState('');
   const [dependencyExplanation, setDependencyExplanation] = useState('');
   const [explanationError, setExplanationError] = useState('');
   const [highlightedFunction, setHighlightedFunction] = useState(null);
   const [selectedFunctionName, setSelectedFunctionName] = useState(null);
   const [selectedFunctionCode, setSelectedFunctionCode] = useState(null);
-  const [selectedDependencyName, setSelectedDependencyName] = useState(null);
 
   const [isLoadingContract, setIsLoadingContract] = useState(false);
   const [isLoadingFunction, setIsLoadingFunction] = useState(false);
@@ -122,27 +53,28 @@ export const Content = ({ address, fetching, setFetching }) => {
     name: '',
     code: '',
   });
-  const [inspectDependency, setInspectDependency] = useState({
-    name: '',
-    code: '',
-  });
+
   const { chain } = useNetwork();
+
   const network = chain?.name?.toLowerCase();
   const { address: userAddress, isConnected } = useAccount();
+
+  if (!address && userAddress) address = chain.id === 137 ? '0x0000000000000000000000000000000000001010' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+
   const { data: signer } = useWalletClient();
-  const { APIKEY, blockExplorerApi, blockExplorerUrl } = chainInfo({ chain });
+  const { APIKEY, blockExplorerApi, blockExplorerUrl, ALCHEMY_API_KEY, alchemyUrl } = chainInfo({ chain });
   const { onCopy, value, setValue, hasCopied } = useClipboard('');
   const [isFetchingCreator, setIsFetchingCreator] = useState(false);
+
   const [contractCreation, setContractCreation] = useState({
     creator: '',
     creationTxn: '',
   });
+
   const [validationResult, setValidationResult] = useState({
     isValid: false,
     message: '',
   });
-  const mainContentRef = useRef(null);
-  const { supabase } = useSupabase();
 
   useEffect(() => {
     if (address && address.length > 0) {
@@ -156,11 +88,10 @@ export const Content = ({ address, fetching, setFetching }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, chain?.id]);
 
-  const explanation = {
-    contract: 'contract',
-    function: 'function',
-    dependency: 'dependency',
-  };
+
+  const mainContentRef = useRef(null);
+  const { supabase } = useSupabase();
+  const toast = useToast();
 
   useEffect(() => {
     if (sourceCode && sourceCode.length > 0) {
@@ -169,6 +100,7 @@ export const Content = ({ address, fetching, setFetching }) => {
       const name = sourceCode[0].name ?? 'Name not found';
 
       fetchExplanation(
+        false,
         sourceCode[0].sourceCode.content,
         // contractsArray[0].sourceCode.content,
         explanation.contract
@@ -178,28 +110,14 @@ export const Content = ({ address, fetching, setFetching }) => {
     }
   }, [sourceCode, chain?.id]);
 
-  // useEffect(() => {
-  //   if (sourceCode && sourceCode.length > 0) {
-  //     fetchExplanation(
-  //       sourceCode[0].sourceCode.content,
-  //       // contractsArray[0].sourceCode.content,
-  //       explanation.contract
-  //     );
-  //   }
-  // }, [sourceCode]);
 
   const fetchExplanation = useCallback(
-    async (code, type, arrayId = '') => {
-      // const relay = new GelatoRelay();
-
-      // const result = await getExplanation(address, inspectContract.name);
-
-      // console.log('getExplanation in fetchExplanation', result);
+    async (dep, code, type, arrayId = '') => {
 
       let fileExplanationSuccess = false;
 
       // check if the explanation exists in the db
-      const id = chain.id + '-' + address;
+      const id = chain?.id + '-' + address;
       const { data: supabaseResponse, error } = await supabase
         .from(contractsDatabase)
         .select('*')
@@ -212,7 +130,7 @@ export const Content = ({ address, fetching, setFetching }) => {
       }
       if (supabaseResponse.length > 0) {
         let requiredField;
-        if (type === explanation.contract) {
+        if (type === explanation.contract && !dep) {
           requiredField = 'contract_explanation';
           setIsLoadingContract(true);
           if (supabaseResponse[0][requiredField] !== null) {
@@ -242,7 +160,7 @@ export const Content = ({ address, fetching, setFetching }) => {
           ) {
             setFunctionExplanation(supabaseResponse[0][requiredField][arrayId]);
             setIsLoadingFunction(false);
-            fileExplanationSuccess = true;
+            fileExplanationSuccess = false;
           }
         }
       }
@@ -270,7 +188,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               'Bearer ' + String(process.env.REACT_APP_OPENAI_API_KEY),
           },
           body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
+            model: 'gpt-3.5-turbo-16k',
             messages: [
               { role: 'system', content: 'You are a great teacher.' },
               {
@@ -279,7 +197,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               },
             ],
             temperature: 0.3,
-            max_tokens: 3000,
+            max_tokens: 2000,
           }),
         };
 
@@ -305,7 +223,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               setIsLoadingContract(false);
               // insert the new explanation into the database
               console.log('updating database');
-              contract['contract_explanation'] =
+              contract['dependency_explanations'] =
                 data.choices[0].message.content;
               const { data: updatedData, error: updateError } = await supabase
                 .from(contractsDatabase)
@@ -319,32 +237,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               }
 
               console.log('Item updated!', updatedData);
-              // const uploadResult = await uploadJSON(
-              //   address,
-              //   network,
-              //   inspectContract?.name,
-              //   data.choices[0].message.content
-              // );
-              // console.log('uploadResult', uploadResult);
-              // const smartReader = getContract(network, signer);
-              // const { data: sponsoredData } =
-              //   await smartReader.populateTransaction.addContract(
-              //     address,
-              //     inspectContract.name,
-              //     uploadResult
-              //   );
 
-              // const sponsoredCallRequest = {
-              //   chainId: chain?.id,
-              //   target: smartReader.address,
-              //   data: sponsoredData,
-              // };
-
-              // const relayResponse = await relay.sponsoredCall(
-              //   sponsoredCallRequest,
-              //   process.env.REACT_APP_GELATO_API_KEY
-              // );
-              // console.log('Gelato relay result: ', relayResponse);
             } else if (type === explanation.dependency) {
               console.log('data.choices[0]', data.choices[0]);
               setDependencyExplanation(data.choices[0].message.content);
@@ -487,17 +380,8 @@ export const Content = ({ address, fetching, setFetching }) => {
           console.log('Object is empty');
           break;
         }
-        // if (!data[0].hasOwnProperty(requiredFields[i])) {
-        //   allFieldsExist = false;
-        //   break;
-        // }
-        // if (Object.keys(data[0][requiredFields[i]]).length === 0) {
-        //   allFieldsExist = false;
-        //   console.log('Object is empty');
-        //   break;
-        // }
+
       }
-      // console.log('All fields exist');
 
       if (allFieldsExist) {
         for (let i = 0; i < setFunctions.length; i++) {
@@ -561,32 +445,13 @@ export const Content = ({ address, fetching, setFetching }) => {
           const response = await axios.get(
             `https://${blockExplorerApi}?module=${apiModule}&action=${apiAction}&contractaddresses=${address}&apikey=${APIKEY}`
           );
-          // setContractCreation({
-          //   creator: response.data.result[0].contractCreator,
-          //   creationTxn: response.data.result[0].txHash,
-          // });
 
           creationInfo = {
             creator: response.data.result[0].contractCreator,
             creationTxn: response.data.result[0].txHash,
           };
-          // setIsFetchingCreator(false);
-          // return creationInfo;
-          // setIsFetchingCreator(false);
         } catch (error) {
           console.log('Error fetching contract creation:', error);
-
-          // const creationInfo = {
-          //   creator: null,
-          //   creationTxn: null,
-          // };
-          // const contract = {
-          //   contract_id: chain.id + '-' + address,
-          //   creation_info: creationInfo,
-          // };
-          // setIsFetchingCreator(false);
-          // return contract;
-          // setContractCreation();
         }
 
         const contract = {
@@ -607,6 +472,48 @@ export const Content = ({ address, fetching, setFetching }) => {
     }
   }, [address, fetchCreatorAndCreation]);
 
+  const fetchTokenData = useCallback(async (address) => {
+    console.log('fetching token data', address, chain?.id, alchemyUrl, ALCHEMY_API_KEY)
+    try {
+        const apiUrl = `${alchemyUrl}${ALCHEMY_API_KEY}`;
+        if (!address) return null;
+        const options = {
+            method: 'POST',
+            url: apiUrl,
+            headers: {
+                'Content-Type': 'application/json',
+                accept: 'application/json',
+            },
+            data: {
+                id: chain?.id,
+                jsonrpc: '2.0',
+                method: 'alchemy_getTokenMetadata',
+                params: [address],
+            }
+        }
+
+        const res = await axios(options);
+        const { name, logo, symbol } = res.data.result;
+        console.log({name, logo, symbol});
+        //   setContractName(name);
+        setTokenData({
+            name,
+            logo,
+            symbol,
+        });
+    } catch (error) {
+        console.log('Alchemy error', error);
+        toast({
+            title: 'Error',
+            description: error.message,
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+        });
+        setContractName('Unknown');
+    }
+}, [ALCHEMY_API_KEY, alchemyUrl, chain?.id, toast]);
+
   const fetchSourceCode = useCallback(async () => {
     if (!userAddress || userAddress === '') return;
     if (!(await isContract(address))) return;
@@ -619,12 +526,20 @@ export const Content = ({ address, fetching, setFetching }) => {
       [setSourceCode, setContractABI],
       async () => {
         try {
-          const resp = await axios.get(
+          let resp = await axios.get(
             `https://${blockExplorerApi}?module=contract&action=getsourcecode&address=${address}&apikey=${APIKEY}`
           );
           let sourceObj;
           let contracts;
           let contractsArray;
+          console.log('seeee', resp.data.result[0])
+          if (resp.data.result[0].Implementation) {
+            const message = `This is an implementation address, using the proxy address instead. ${resp.data.result[0].Implementation}`;
+            console.log(message);
+            resp = await axios.get(
+              `https://${blockExplorerApi}?module=contract&action=getsourcecode&address=${resp.data.result[0].Implementation}&apikey=${APIKEY}`
+            );
+          }
           if (!resp.data.result[0].SourceCode) {
             const message = `No source code found for ${address}. Are you on the correct network?`;
             setValidationResult({
@@ -657,24 +572,29 @@ export const Content = ({ address, fetching, setFetching }) => {
             source_code: contractsArray,
             abi: addressABI,
           };
-          // while (!inspectContract) {
-          //   // console.log('In here');
-          //   await new Promise((resolve) => setTimeout(resolve, 100));
-          // }
 
           fetchExplanation(
+            false,
             contractsArray[0].sourceCode.content,
             explanation.contract
           );
           // console.log('name', contractsArray[0].name);
           setFetching(false);
+          toast({
+            title: 'Contract found',
+            description: `Contract ${contractsArray[0].name} found on ${chain.name}`,
+            status: 'success',
+            duration: 5000,
+            isClosable: true,
+        });
           return contract;
         } catch (err) {
           // Handle Error Here
           console.log('fetch source code error', err);
           setFetching(false);
           setSourceCode([]);
-          setContractName('Contract name');
+          setContractName('Unknown');
+          setTokenData({'name': 'Unknown', 'logo': '', 'symbol': ''});
           setExplanationError('');
           setContractExplanation('');
           setInspectContract(undefined);
@@ -686,13 +606,15 @@ export const Content = ({ address, fetching, setFetching }) => {
   useEffect(() => {
     setExplanationError('');
     setContractExplanation('');
-    if (fetching) {
+
+
+      fetchTokenData(address);
       fetchSourceCode();
-    }
-  }, [fetching, fetchSourceCode, setFetching, address, chain?.id]);
+    
+  }, [fetching, fetchSourceCode, setFetching, address, chain?.id, fetchTokenData]);
 
   const handleContractChange = useCallback(
-    (e) => {
+    async (e) => {
       setContractExplanation('');
       const selectedContract =
         e.target.querySelector('.dependency-name').innerText ||
@@ -700,13 +622,14 @@ export const Content = ({ address, fetching, setFetching }) => {
       const contract = sourceCode.find(
         (contract) => contract.name === selectedContract
       );
-
+      setContractName(selectedContract);
       if (mainContentRef.current) {
         mainContentRef.current.scrollTop = 50;
       }
-
+      const dep = true
       setInspectContract(contract);
-      fetchExplanation(
+      await fetchExplanation(
+        dep,
         contract.sourceCode.content,
         explanation.contract,
         contract.name
@@ -722,18 +645,20 @@ export const Content = ({ address, fetching, setFetching }) => {
 
       if (lineNode.nodeName === 'SPAN') {
         const childSpans = lineNode.querySelectorAll('span');
-        childSpans.forEach((span) => {
+        childSpans.forEach((span, i) => {
           let foundFunction = false;
           if (span.innerText.includes('function')) {
             foundFunction = true;
             const codeBlock = lineNode.closest('pre');
             const codeLines = codeBlock.querySelectorAll('span');
             const startIndex = Array.from(codeLines).indexOf(lineNode);
+            console.log('startIndex', startIndex);
             const closingBraceRegex = /}(\s)*$/;
             let endIndex = startIndex;
             while (!closingBraceRegex.test(codeLines[endIndex].innerText)) {
               endIndex++;
             }
+         
             const highlightedLines = Array.from(codeLines).slice(
               startIndex,
               endIndex + 1
@@ -742,12 +667,32 @@ export const Content = ({ address, fetching, setFetching }) => {
               line.classList.add('highlight');
             });
             setHighlightedFunction(highlightedLines);
-
             const highlightedText = highlightedLines
               .slice(1)
               .map((line) => line.innerText.trim())
-              .join('\n');
-            setSelectedFunctionCode(highlightedText);
+              
+            function formatCode(arr) {
+              let formattedCode = '';
+              let lastLineNumber = -1;
+              for (let i = 0; i < arr.length; i++) {
+                  if (arr[i] !== '') {
+                      
+                      if (!isNaN(parseInt(arr[i])) && +arr[i] !== 0) {
+                        const lineNumber = parseInt(arr[i]);
+                        if (lineNumber !== lastLineNumber) {
+                            formattedCode += '\n' + arr[i]
+                            lastLineNumber = lineNumber;
+                        }
+                      } else {
+                          formattedCode += arr[i] + ' ';
+                      }
+                  }
+              }
+              return formattedCode.trim();
+            }
+            const formattedCode = formatCode(highlightedText);
+            console.log(formattedCode,'formatted')
+            setSelectedFunctionCode(formattedCode);
           }
           if (foundFunction) {
             let nextSpan = span.nextElementSibling;
@@ -782,9 +727,11 @@ export const Content = ({ address, fetching, setFetching }) => {
               }
             }
             setSelectedFunctionName(concatenatedFunctionName);
+
             foundFunction = false;
           }
         });
+
       } else {
         if (highlightedFunction) {
           highlightedFunction.forEach((line) => {
@@ -808,11 +755,6 @@ export const Content = ({ address, fetching, setFetching }) => {
     onClose: onCloseAnnotation,
   } = useDisclosure();
 
-  // const {
-  //   isOpen: isOpenDependency,
-  //   onOpen: onOpenDependency,
-  //   onClose: onCloseDependency,
-  // } = useDisclosure();
 
   const handleCodeClick = useCallback(() => {
     if (!selectedFunctionName || !selectedFunctionCode) {
@@ -822,23 +764,19 @@ export const Content = ({ address, fetching, setFetching }) => {
 
     onOpenSimulate();
 
+    console.log('selectedFunctionCode', selectedFunctionCode);
+
     setInspectFunction({
       name: selectedFunctionName,
       code: selectedFunctionCode,
     });
+
     fetchExplanation(
+      false,
       selectedFunctionCode,
       explanation.function,
       selectedFunctionName
     );
-    // let formattedCode = '';
-    // if (inspectFunction && inspectFunction.code) {
-    //   const formattedCode = prettier.format(inspectContract.code, {
-    //     parser: 'typescript',
-    //     plugins: [typescript],
-    //   });
-    //
-    // }
   }, [
     selectedFunctionName,
     selectedFunctionCode,
@@ -849,305 +787,72 @@ export const Content = ({ address, fetching, setFetching }) => {
 
   return (
     <Stack
-      h="full"
+      h={!userAddress ? "calc(100vh - 130px)" : "full"}
       w="full"
+      alignItems={!userAddress ? "center" : "stretch"}
+      justifyContent={!userAddress ? "center" : "flex-start"}
       background="#FFFFFF1A"
       backdropFilter="blur(8px)"
       p={6}
       borderRadius="8px"
       gap={8}
-      zIndex={0}
+      zIndex={10}
     >
       {!userAddress ? (
-        <Box
-          position="absolute"
-          w="screen"
-          h="12"
-          top={0}
-          right={0}
-          zIndex={-1}
-        >
-          <Flex
-            alignItems="center"
-            justifyContent="space-around"
-            h="full"
-            p={3}
-            borderRadius="xl"
-            overflow="hidden"
-          >
-            Connect your wallet to use this dApp. <ArrowUpIcon />
-          </Flex>
-        </Box>
+        <ConnectWalletWarning />
       ) : undefined}
-      <Stack>
-        <Flex alignItems="center" gap={2}>
-          <Image src={'/images/document.svg'} />
-          {/* This should be the name of the contract address the user plugs in */}
-          <Heading as="h1" size="lg" fontWeight={600} noOfLines={1}>
-            {contractName}
-          </Heading>
-        </Flex>
-        <Flex alignItems="center">
-          {address && userAddress && validationResult.result ? (
-            <>
-              <Link
-                href={`${blockExplorerUrl}/address/${address}`}
-                fontSize="sm"
-                color="#A4BCFF"
-                isExternal
-              >
-                {address}
-              </Link>
-              <Button
-                variant="unstyled"
-                size="sm"
-                onClick={() => {
-                  setValue(address);
-                  onCopy(value);
-                }}
-                position="relative"
-              >
-                <CopyIcon color="white" />
-                <Badge
-                  position="absolute"
-                  display="block"
-                  top={0}
-                  right="auto"
-                  transformOrigin="center"
-                  transform="translate3d(-25%, -13px, 0)"
-                  colorScheme="green"
-                  variant="solid"
-                  borderRadius="sm"
-                >
-                  {hasCopied ? 'Copied!' : undefined}
-                </Badge>
-              </Button>
-            </>
-          ) : (
-            <Text fontSize="sm">
-              {!userAddress
-                ? 'Connect your wallet'
-                : !validationResult.result
-                ? 'No valid address'
-                : 'No contract selected'}
-            </Text>
-          )}
-        </Flex>
-        <Heading as="h2" size="md" fontWeight={600} noOfLines={1}>
-          CREATOR
-        </Heading>
-        {/* {isFetchingCreator ||
-          !contractCreation ||
-          (contractCreation.creator === '' && (
-            <Flex gap={1} alignItems="center">
-              <Spinner size="xs" /> Fetching creator...
-            </Flex>
-          ))} */}
-        {/* {contractCreation && contractCreation.creator !== '' && (
-          <Text fontSize="sm">
-            {!userAddress
-              ? 'Connect your wallet'
-              : !validationResult.result
-              ? 'No valid address'
-              : 'No contract selected'}
-          </Text>
-        )} */}
 
-        {isFetchingCreator && (
-          <Flex gap={1} alignItems="center">
-            <Spinner size="xs" /> Fetching creator...
-          </Flex>
-        )}
-
-        {!isFetchingCreator &&
-        contractCreation &&
-        contractCreation.creator !== '' &&
-        validationResult.result ? (
-          <Flex gap={1}>
-            <Link
-              href={`${blockExplorerUrl}/address/${contractCreation.creator}`}
-              fontSize="sm"
-              color="#A4BCFF"
-              isExternal
-            >
-              {shortenAddress(contractCreation.creator)}
-            </Link>
-            <Text fontSize="sm">at txn</Text>
-            <Link
-              href={`${blockExplorerUrl}/tx/${contractCreation.creationTxn}`}
-              fontSize="sm"
-              color="#A4BCFF"
-              isExternal
-            >
-              {shortenAddress(contractCreation.creationTxn)}
-            </Link>
-          </Flex>
-        ) : (
-          <Text fontSize="sm">
-            {!userAddress
-              ? 'Connect your wallet'
-              : !validationResult.result
-              ? 'No valid address'
-              : 'No contract selected'}
-          </Text>
-        )}
-      </Stack>
-      <Files sourceCode={sourceCode} handleClick={handleContractChange} />
-      <Flex alignItems="center" w="full" h="lg">
-        <Box
-          background="#00000080"
-          w="50%"
-          h="full"
-          p={6}
-          borderTopLeftRadius="lg"
-          borderBottomLeftRadius="lg"
-          onMouseOver={(event) => handleCodeHover(event)}
-        >
-          <Heading as="h3" size="md" noOfLines={1} pb={8}>
-            SOURCE CODE
-          </Heading>
-          <Box h="sm" overflow="auto">
-            <SyntaxHighlighter
-              language="solidity"
-              style={{
-                ...dracula,
-                display: 'inline-table',
-              }}
-              onClick={() => handleCodeClick()}
-              wrapLines={true}
-            >
-              {inspectContract?.sourceCode?.content || ''}
-            </SyntaxHighlighter>
-          </Box>
-        </Box>
-        <Box
-          ref={mainContentRef}
-          background="#FFFFFF1A"
-          w="50%"
-          h="full"
-          p={6}
-          borderTopRightRadius="lg"
-          borderBottomRightRadius="lg"
-        >
-          <Stack spacing={4}>
-            <Heading as="h3" size="md" noOfLines={1}>
-              SUMMARY
-            </Heading>
-            <Tabs size="sm" variant="unstyled">
-              <TabList
-                border="2px solid #FFFFFF40"
-                borderRadius="2xl"
-                p={1}
-                gap={1}
-              >
-                <CustomTab>Beginner</CustomTab>
-                <CustomTab isDisabled={true} aria-disabled="true">
-                  Intermediate
-                </CustomTab>
-                <CustomTab isDisabled={true} aria-disabled="true">
-                  Advanced
-                </CustomTab>
-              </TabList>
-              <TabPanels>
-                <TabPanel>
-                  <Box h="sm" overflowY="auto" pb={10}>
-                    {isLoadingContract && (
-                      <Box
-                        display="flex"
-                        flexFlow="column wrap"
-                        height="full"
-                        maxW="full"
-                        alignItems="center"
-                        justifyContent="center"
-                        rowGap={2}
-                      >
-                        <Spinner />{' '}
-                        <span>
-                          {contractMessages[Math.floor(Math.random() * 5)]}
-                        </span>
-                      </Box>
-                    )}
-                    {contractExplanation && !isLoadingContract && (
-                      <Text ml={2} transition="ease-in-out">
-                        {contractExplanation}
-                      </Text>
-                    )}
-                    {explanationError !== '' && (
-                      <Text ml={2} transition="ease-in-out" color="red.400">
-                        {explanationError}
-                      </Text>
-                    )}
-                  </Box>
-                </TabPanel>
-                <TabPanel>
-                  <Box h="sm" overflowY="auto">
-                    <Text>
-                      The intermediate code provided is not related to
-                      SPDX-License-Identifier: MIT, but rather an abstract
-                      contract called Initializable that aids in writing
-                      upgradeable contracts. <br />
-                      <br />
-                      The purpose of this contract is to provide a modifier
-                      called "initializer" that protects an initializer function
-                      from being invoked twice. The contract also includes two
-                      boolean variables, _initialized and _initializing, that
-                      track whether the contract has been initialized or is in
-                      the process of being initialized. In terms of potential
-                      vulnerabilities, there does not appear to be any immediate
-                      concerns with this code. <br />
-                      <br />
-                      However, as the contract is intended to be used for
-                      writing upgradeable contracts, it is important to ensure
-                      that any contracts that inherit from this contract are
-                      properly designed and tested to avoid any potential
-                      security risks. <br />
-                      <br />
-                      Additionally, care must be taken to avoid invoking a
-                      parent initializer twice or ensuring that all initializers
-                      are idempotent when using this contract with inheritance.
-                    </Text>
-                  </Box>
-                </TabPanel>
-                <TabPanel>
-                  <Box h="sm" overflowY="auto">
-                    <Text>
-                      The advanced code provided is not related to
-                      SPDX-License-Identifier: MIT, but rather an abstract
-                      contract called Initializable that aids in writing
-                      upgradeable contracts. <br />
-                      <br />
-                      The purpose of this contract is to provide a modifier
-                      called "initializer" that protects an initializer function
-                      from being invoked twice. The contract also includes two
-                      boolean variables, _initialized and _initializing, that
-                      track whether the contract has been initialized or is in
-                      the process of being initialized. In terms of potential
-                      vulnerabilities, there does not appear to be any immediate
-                      concerns with this code. <br />
-                      <br />
-                      However, as the contract is intended to be used for
-                      writing upgradeable contracts, it is important to ensure
-                      that any contracts that inherit from this contract are
-                      properly designed and tested to avoid any potential
-                      security risks. <br />
-                      <br />
-                      Additionally, care must be taken to avoid invoking a
-                      parent initializer twice or ensuring that all initializers
-                      are idempotent when using this contract with inheritance.
-                    </Text>
-                  </Box>
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </Stack>
-        </Box>
+      {!userAddress ? (
+        <Intro />
+      ) : (
+          <>
+      <ContractMetaData
+        contractName={contractName}
+        validationResult={validationResult}
+        address={address}
+        userAddress={userAddress}
+        setValue={setValue}
+        onCopy={onCopy}
+        hasCopied={hasCopied}
+        blockExplorerUrl={blockExplorerUrl}
+        contractCreation={contractCreation}
+        isFetchingCreator={isFetchingCreator}
+        value={value}
+        tokenData={tokenData}
+      />
+      <Files
+        sourceCode={sourceCode}
+        selectedContract={contractName}
+        handleClick={handleContractChange}
+      />
+      <Flex
+        direction={{ base: 'column', lg: 'row' }}
+        alignItems="center"
+        w="full"
+        h={{ base: 'full', lg: 'lg' }}
+      >
+        <CodeReader
+          inspectContract={inspectContract}
+          handleCodeHover={handleCodeHover}
+          handleCodeClick={handleCodeClick}
+          id={`${chain?.id}-${address}`}
+        />
+        <CodeExplanation
+          contractExplanation={contractExplanation}
+          isLoadingContract={isLoadingContract}
+          explanationError={explanationError}
+          mainContentRef={mainContentRef}
+          contractMessages={contractMessages}
+        />
       </Flex>
 
-      <Comments chainId={chain?.id} contractAddress={address} />
+      {address !== '' && <Comments chainId={chain?.id} contractAddress={address} />}
+            </>
+      )}
 
       <Modal isOpen={isOpenAnnotation} onClose={onCloseAnnotation}>
         <ModalOverlay />
-        <ModalContent minW="800px" maxH="calc(100% - 80px)" borderRadius={16}>
+        <ModalContent minW="800px" w="75%" maxH="calc(100% - 80px)" borderRadius={16}>
           <ModalHeader
             background="#262545"
             mt={2}
@@ -1165,126 +870,19 @@ export const Content = ({ address, fetching, setFetching }) => {
         </ModalContent>
       </Modal>
 
-      <Modal isOpen={isOpenSimulate} onClose={onCloseSimulate}>
-        <ModalOverlay />
-        <ModalContent
-          minW="800px"
-          maxH="calc(100% - 80px)"
-          borderRadius={16}
-          overflow={'hidden'}
-        >
-          <ModalHeader
-            background="#262545"
-            position="relative"
-            mt={2}
-            mx={2}
-            color="white"
-            borderTopRadius={16}
-            justifyItems="space-between"
-          >
-            <code>Simulate function: {inspectFunction.name}</code>
-            <ModalCloseButton color="white" top="25%" />
-          </ModalHeader>
-          <ModalBody py={6}>
-            <Box
-              flexGrow={0}
-              w="100%"
-              h="100%"
-              overflowY="auto"
-              pb={8}
-              borderRadius="xl"
-            >
-              {inspectFunction &&
-              Object.values(inspectFunction).every((value) => !value) ? null : (
-                <Flex flexDirection={'column'} gap={3}>
-                  <Flex gap={3} border="1px solid red">
-                    <Flex
-                      flexGrow={1}
-                      w="50%"
-                      maxH="600px"
-                      overflowY="auto"
-                      direction="column"
-                      gap={3}
-                      border="1px solid red"
-                    >
-                      <Flex gap={3}>
-                        <Image src="/images/sourcecode.png" w={6} />
-                        <Text fontWeight="bold"> Source code </Text>
-                      </Flex>
-                      <Flex
-                        p={2}
-                        bg="rgb(40, 42, 54)"
-                        overflow="hidden"
-                        borderRadius={16}
-                      >
-                        <SyntaxHighlighter
-                          language="solidity"
-                          style={dracula}
-                          wrapLines={true}
-                        >
-                          {inspectFunction.code ? inspectFunction.code : ''}
-                        </SyntaxHighlighter>
-                      </Flex>
-                    </Flex>
-
-                    <Box
-                      w="50%"
-                      maxH="600px"
-                      overflowY="auto"
-                      direction="column"
-                      gap={3}
-                    >
-                      {isLoadingFunction && (
-                        <Flex
-                          w="full"
-                          h="full"
-                          justifyContent="center"
-                          alignItems="center"
-                          flexDirection={'column'}
-                          rowGap={3}
-                        >
-                          <Spinner />
-                          <Text>
-                            {functionMessages[Math.floor(Math.random() * 5)]}
-                          </Text>
-                        </Flex>
-                      )}
-
-                      {!isLoadingFunction && (
-                        <Flex direction="column" gap={3} h="full">
-                          <Flex gap={3}>
-                            <Image src="/images/explanation.png" w={6} />
-                            <Text fontWeight="bold">Explanation</Text>
-                          </Flex>
-                          <Text
-                            boxShadow="0px 4px 4px rgba(0, 0, 0, 0.25)"
-                            borderRadius={16}
-                            flex={1}
-                            h="full"
-                            p={4}
-                          >
-                            {functionExplanation}
-                          </Text>
-                        </Flex>
-                      )}
-                    </Box>
-                  </Flex>
-                  {inspectFunction && address && network && contractABI && (
-                    <SimulateTransaction
-                      address={address}
-                      network={network}
-                      contractABI={contractABI}
-                      inspectFunction={inspectFunction}
-                      userAddress={userAddress}
-                      isConnected={isConnected}
-                    />
-                  )}
-                </Flex>
-              )}
-            </Box>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      <CodeModal
+        isOpenSimulate={isOpenSimulate}
+        onCloseSimulate={onCloseSimulate}
+        inspectFunction={inspectFunction}
+        functionExplanation={functionExplanation}
+        isLoadingFunction={isLoadingFunction}
+        functionMessages={functionMessages}
+        address={address}
+        network={network}
+        contractABI={contractABI}
+        userAddress={userAddress}
+        isConnected={isConnected}
+      />
     </Stack>
   );
 };

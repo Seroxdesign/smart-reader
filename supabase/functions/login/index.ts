@@ -35,9 +35,7 @@ serve(async (req) => {
 
     // List of trusted origins
     const allowedOrigins = [
-        "http://localhost:3000",
-        // "https://localhost:3000", // TODO delete this once deployed
-
+        "https://localhost:3000", // TODO delete this once deployed
         "https://smart-reader-kappa.vercel.app", //
     ];
 
@@ -103,11 +101,10 @@ serve(async (req) => {
             user_metadata: { address: address },
         });
         if (error) {
+            console.log("error creating user", error.status, error.message);
             return createErrorResponse(error.message, headers);
         }
-        if (data.user != null) {
-            authUser = userData.user;
-        }
+        authUser = userData.user;
     } else {
         const { data: userData, error } = await supabase.auth.admin.getUserById(
             data.id
@@ -115,9 +112,8 @@ serve(async (req) => {
 
         if (error) {
             return createErrorResponse(error.message, headers);
-        } else {
-            authUser = userData.user;
         }
+        authUser = userData.user;
     }
 
     // 5. insert response into public.users table with id

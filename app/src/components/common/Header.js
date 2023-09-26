@@ -8,39 +8,34 @@ import {
   InputGroup,
   InputLeftElement,
   InputRightElement,
-  Link,
   Menu,
   MenuButton,
   MenuItem,
   MenuList,
-  Spinner,
-  Text,
+  useToast,
 } from '@chakra-ui/react';
-import { useWeb3Modal } from '@web3modal/react';
-import React, { useEffect, useState } from 'react';
-import { useAccount, useDisconnect, useNetwork, useSwitchNetwork } from 'wagmi';
-import { mainnet } from 'wagmi/chains';
-import { shortenAddress, validateContractAddress } from '../utils/helpers';
 import { getNetwork } from '@wagmi/core';
+import { useWeb3Modal } from '@web3modal/react';
 import { CheckCircle2 } from 'lucide-react';
-import { Login } from './Login';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useAccount, useSwitchNetwork } from 'wagmi';
+import { mainnet } from 'wagmi/chains';
+import { lowercaseAddress } from '../../utils/helpers';
+import { NavLink as RouterLink } from "react-router-dom";
+import { ConnectButton} from '../ConnectButton';
+
 
 export const Header = ({ address, setAddress, setFetching }) => {
-  const { open, setDefaultChain } = useWeb3Modal();
+  const toast = useToast();
+  const { setDefaultChain } = useWeb3Modal();
   const {
     address: userAddress,
-    isConnected,
-    isConnecting,
-    isDisconnected,
   } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { chain: networkChain, chains: networkChains } = useNetwork();
   const { chain, chains } = getNetwork();
   const {
     chains: switchNetworkChains,
     switchNetwork,
     isLoading: isSwitchingNetwork,
-    pendingChainId,
     error: switchNetworkError,
   } = useSwitchNetwork();
   const [validationResult, setValidationResult] = useState({
@@ -53,49 +48,55 @@ export const Header = ({ address, setAddress, setFetching }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [pageName, setPageName] = useState(undefined);
+  // useEffect that gets the current url and sets the page name
+
+  const handlePageName = useCallback(() => {
+      const path = window.location.pathname;
+    const page = path.split("/").pop();
+      setPageName(page);
+  }, []);
+
   useEffect(() => {
-    if (address) {
-      console.log('address', address);
-      validateContractAddress(
-        address,
-        userAddress,
-        validationResult,
-        setValidationResult
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, chain?.id]);
+    handlePageName();
+  }, []);
 
   return (
     <Flex
-      h={16}
+      h={{ base: 'full', lg: 16 }}
+      w="full"
+      flexWrap="wrap"
       alignItems="center"
       background="#FFFFFF1A"
       backdropFilter="blur(8px)"
       px={6}
+      py={{ base: 6, lg: 0 }}
       gap={6}
       borderRadius="8px"
       justifyContent="space-between"
       zIndex={50}
     >
       <Box>
-        <Image src="images/logo.svg" w={8} h={8} />
+        <RouterLink to="/">
+          <Image src="images/logo.svg" w={8} h={8} alt="SmartReader logo" />
+        </RouterLink>
       </Box>
-      <Flex alignItems="center" gap={6}>
-        <Box>
-          <InputGroup size="md">
+      <Flex alignItems="center" flexWrap="wrap" gap={6}>
+        <Box w={{ base: 'full', lg: 'auto' }}>
+          <InputGroup size={{ base: 'sm', lg: 'md' }}>
             <InputLeftElement>
-              <Search2Icon color="white" />
+              <Search2Icon color={!userAddress ? "whiteAlpha.600" : "white"} />
             </InputLeftElement>
             <Input
-              w="35rem"
+              w={{ base: 'full', lg: '35rem' }}
               borderRadius="full"
               variant="filled"
               background="#00000026"
+              pr={{ base: '6.5rem', lg: 0 }}
               _placeholder={{ color: 'white' }}
               _hover={{ background: '#00000026' }}
-              placeholder="Search contracts..."
-              defaultValue={address}
+              placeholder={!userAddress ? "Connect to search contracts..." : "Search contracts..."}
+              defaultValue={!userAddress || !address ? '' : lowercaseAddress(address)}
               outline={
                 validationResult.message !== '' && validationResult.result
                   ? '1px solid green'
@@ -104,17 +105,21 @@ export const Header = ({ address, setAddress, setFetching }) => {
                   : 'none'
               }
               onChange={(e) => {
-                setAddress(e.target.value);
-                validateContractAddress(
-                  address,
-                  userAddress,
-                  validationResult,
-                  setValidationResult
-                );
+               if (e.target.value.length === 42 && e.target.value.startsWith('0x')) {
+                  setAddress(e.target.value);
+               } else {
+                toast({
+                  title: 'Invalid contract address',
+                  description: 'Please enter a valid contract address',
+                  status: 'info',
+                  duration: 5000,
+                  isClosable: true,
+                })
+               }
+              
                 setFetching(true);
-                e.target.value.length === 0 &&
-                  setValidationResult({ result: false, message: '' });
               }}
+              isDisabled={!userAddress}
             />
 
             <InputRightElement width="8rem" justifyContent="flex-end" mr={2}>
@@ -132,6 +137,7 @@ export const Header = ({ address, setAddress, setFetching }) => {
                     _hover={{ background: '#FFFFFF70' }}
                     _active={{ background: '#FFFFFF60', color: '#101D42' }}
                     _focus={{ outline: '1px dashed #ffffff75' }}
+                    isDisabled={!userAddress}
                   >
                     {chain?.name ?? mainnet.name}
                   </MenuButton>
@@ -170,31 +176,11 @@ export const Header = ({ address, setAddress, setFetching }) => {
               ) : undefined}
             </InputRightElement>
           </InputGroup>
-          {!validationResult.result && validationResult.message && (
-            <Text px={10} fontSize="xs" color="red.400">
-              {validationResult.message}
-            </Text>
-          )}
         </Box>
-        <Link href="" target="_blank" color="white">
+        <RouterLink to="/about">
           About
-        </Link>
-        {/* <Login /> */}
-        <Button
-          background="transparent"
-          color="whiteAlpha.700"
-          _hover={{ background: 'transparent', color: 'white' }}
-          border="2px solid white"
-          borderRadius="full"
-          onClick={() => (isConnected ? disconnect() : open())}
-        >
-          {isConnecting && <Spinner size="xs" mr={2} />}{' '}
-          {isConnected
-            ? shortenAddress(userAddress)
-            : isConnecting
-            ? 'Connecting'
-            : 'Connect wallet'}
-        </Button>
+        </RouterLink>
+        <ConnectButton address={address} setAddress={setAddress} />
       </Flex>
     </Flex>
   );

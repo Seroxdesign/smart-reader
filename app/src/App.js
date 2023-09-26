@@ -1,57 +1,56 @@
-import { Flex } from '@chakra-ui/react';
+import { Flex, Box } from '@chakra-ui/react';
 import './App.css';
-
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import {
-  EthereumClient,
-  w3mConnectors,
-  w3mProvider,
+    EthereumClient,
+    w3mConnectors,
+    w3mProvider,
 } from '@web3modal/ethereum';
-import { Web3Modal } from '@web3modal/react';
 import React from 'react';
+import { Web3Modal } from '@web3modal/react'
 import { WagmiConfig, configureChains, createConfig } from 'wagmi';
-import { goerli, mainnet, polygon } from 'wagmi/chains';
-import { Main } from './components/Main';
-
+import { mainnet, polygon } from 'wagmi/chains';
+import { AboutPage } from './pages/About';
+import { HomePage } from './pages/Home';
+import { projectId} from './utils/constants';
 import { SupabaseProvider } from './utils/supabaseContext';
 
 export const Context = React.createContext();
-//newentery
+
 function App() {
-  const projectId = process.env.REACT_APP_WALLETCONNECT_PROJECT_ID;
-  const chains = [mainnet, polygon, goerli];
+    const chains = [mainnet, polygon];
 
-  const { publicClient } = configureChains(chains, [
-    w3mProvider({ projectId }),
-  ]);
+    const { publicClient } = configureChains(chains, [
+        w3mProvider({ projectId }),
+    ]);
 
-  const wagmiClient = createConfig({
-    autoConnect: true,
-    connectors: w3mConnectors({
-      version: '1',
-      appName: 'smartreader',
-      chains,
-      projectId,
-    }),
-    publicClient,
-  });
+    const wagmiClient = createConfig({
+        autoConnect: false,
+        connectors: w3mConnectors({
+            version: '1',
+            appName: 'smartreader',
+            chains,
+            projectId,
+        }),
+        publicClient,
+    });
 
-  const ethereumClient = new EthereumClient(wagmiClient, chains);
-  return (
-    <SupabaseProvider>
-      <WagmiConfig config={wagmiClient}>
-        <Flex
-          direction="column"
-          h="full"
-          p={6}
-          bgGradient="radial(43.95% 43.95% at 30.69% 0%, #172F74 0.18%, #101D42 100%)"
-          backgroundRepeat="no-repeat"
-        >
-          <Main />
-          <Web3Modal projectId={projectId} ethereumClient={ethereumClient} />
-        </Flex>
-      </WagmiConfig>
-    </SupabaseProvider>
-  );
+    const ethereumClient = new EthereumClient(wagmiClient, chains);
+
+    return (
+        <SupabaseProvider>
+            <WagmiConfig config={wagmiClient}>
+                <Router>
+                    <Routes>
+                        <Route exact path="/" element={<HomePage />} />
+                        <Route path="about" element={<AboutPage />} />
+                    </Routes>
+                </Router>
+                <Web3Modal projectId={projectId} ethereumClient={ethereumClient} />
+            </WagmiConfig>
+        </SupabaseProvider>
+
+    );
 }
 
 export default App;

@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { Input, Image, Text, Flex, Link, Divider } from '@chakra-ui/react';
 
 import { useState } from 'react';
-import chainInfo from '../utils/chainInfo';
+import chainInfo from '../../utils/chainInfo';
 import { useNetwork } from 'wagmi';
-import { getContracts } from '../utils/queries';
+import { getContracts } from '../../utils/queries';
 
 const SideMenu = () => {
   const [search, setSearch] = useState('');

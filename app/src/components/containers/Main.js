@@ -1,17 +1,19 @@
 import { Flex } from '@chakra-ui/react';
 import React, { useState } from 'react';
-import { useNetwork } from 'wagmi';
+import { useNetwork, useAccount } from 'wagmi';
 import { Content } from './Content';
-import { Header } from './Header';
+import { Header } from '../common/Header';
 
 export const Main = () => {
   const { chain } = useNetwork();
-  console.log('chain', chain);
-  const [fetching, setFetching] = useState(false);
-  const [address, setAddress] = useState('');
+  const { address: userAddress, isConnected } = useAccount();
+    const [fetching, setFetching] = useState(false);
+    const defaultContract = !isConnected ? '' : chain.id === 137 ? '0x0000000000000000000000000000000000001010' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+    const [address, setAddress] = useState(defaultContract);
 
   return (
     <Flex
+      position="relative"
       h="full"
       w="full"
       direction="column"
@@ -24,6 +26,7 @@ export const Main = () => {
         setFetching={setFetching}
       />
       <Content
+        key={`${chain?.id}-${address}`}
         address={address}
         fetching={fetching}
         setFetching={setFetching}
