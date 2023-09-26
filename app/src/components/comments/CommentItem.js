@@ -72,7 +72,6 @@ const CommentItem = ({
       const updatedDownvotes = data.downvotes.filter(
         (address) => address !== userAddress.toLowerCase()
       );
-      console.log({ updatedUpvotes, updatedDownvotes })
       // update item
       await supabase
         .from('votes')
@@ -87,7 +86,6 @@ const CommentItem = ({
   }
 
   async function downvote() {
-    console.log('in downvote', isLoggedIn, isConnected)
     if (!isLoggedIn && !isConnected) return;
     try {
       const { data, error } = await supabase
@@ -129,7 +127,6 @@ const CommentItem = ({
       const updatedUpvotes = data.upvotes.filter(
         (address) => address !== userAddress
       );
-      console.log({ updatedUpvotes, updatedDownvotes })
       // update item
       await supabase
         .from('votes')

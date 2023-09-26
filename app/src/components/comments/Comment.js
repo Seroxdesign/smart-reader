@@ -13,7 +13,6 @@ export const Comment = ({ comment }) => {
   const { chain } = useNetwork();
 
   useEffect(() => {
-    console.log('re-rendering')
     getReplies();
   }, []);
 
@@ -25,7 +24,6 @@ export const Comment = ({ comment }) => {
       .from('comments') // replace with your table name
       .select('*')
       .eq('parent', comment?.id);
-    if (error) console.log('Error: ', error);
     if (!replyData) return;
     // Map the data into the desired format
     const repliesNew = [];

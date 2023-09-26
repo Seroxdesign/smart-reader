@@ -7,7 +7,6 @@ import { Button, Spinner } from '@chakra-ui/react';
 import { ethers } from 'ethers';
 import { useSignMessage } from 'wagmi';
 import { setCookie } from 'typescript-cookie';
-import jwtDecode from 'jwt-decode';
 
 export const Login = () => {
   const [message, setMessage] = React.useState(
@@ -26,27 +25,6 @@ export const Login = () => {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  useEffect(() => {
-    const token = Cookies.get('supabasetoken');
-    if (!token) {
-      // Prompt the user to log in or sign up.
-    } else {
-      // Use Supabase client to set the session:
-
-      const decodedToken = jwtDecode(token);
-      // Check if it's expired
-      const currentTime = Date.now() / 1000; // in seconds
-      if (decodedToken.exp < currentTime) {
-        console.log('Token is expired');
-      } else {
-        console.log('Token is not expired');
-        setToken(token);
-
-        setIsLoggedIn(true);
-      }
-    }
-  }, []);
 
   async function login() {
     setIsLoggingIn(true);

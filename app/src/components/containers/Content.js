@@ -76,6 +76,19 @@ export const Content = ({ address, fetching, setFetching }) => {
     message: '',
   });
 
+  useEffect(() => {
+    if (address && address.length > 0) {
+      validateContractAddress(
+        address,
+        userAddress,
+        validationResult,
+        setValidationResult
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, chain?.id]);
+
+
   const mainContentRef = useRef(null);
   const { supabase } = useSupabase();
   const toast = useToast();
@@ -175,7 +188,7 @@ export const Content = ({ address, fetching, setFetching }) => {
               'Bearer ' + String(process.env.REACT_APP_OPENAI_API_KEY),
           },
           body: JSON.stringify({
-            model: 'gpt-4',
+            model: 'gpt-3.5-turbo-16k',
             messages: [
               { role: 'system', content: 'You are a great teacher.' },
               {
@@ -513,7 +526,7 @@ export const Content = ({ address, fetching, setFetching }) => {
       [setSourceCode, setContractABI],
       async () => {
         try {
-          const resp = await axios.get(
+          let resp = await axios.get(
             `https://${blockExplorerApi}?module=contract&action=getsourcecode&address=${address}&apikey=${APIKEY}`
           );
           let sourceObj;
@@ -593,10 +606,11 @@ export const Content = ({ address, fetching, setFetching }) => {
   useEffect(() => {
     setExplanationError('');
     setContractExplanation('');
-    fetchTokenData(address);
-    if (fetching) {
+
+
+      fetchTokenData(address);
       fetchSourceCode();
-    }
+    
   }, [fetching, fetchSourceCode, setFetching, address, chain?.id, fetchTokenData]);
 
   const handleContractChange = useCallback(
@@ -644,6 +658,7 @@ export const Content = ({ address, fetching, setFetching }) => {
             while (!closingBraceRegex.test(codeLines[endIndex].innerText)) {
               endIndex++;
             }
+         
             const highlightedLines = Array.from(codeLines).slice(
               startIndex,
               endIndex + 1
@@ -652,12 +667,32 @@ export const Content = ({ address, fetching, setFetching }) => {
               line.classList.add('highlight');
             });
             setHighlightedFunction(highlightedLines);
-            console.log(highlightedLines.slice(1).map((line) => line.innerText.trim()))
             const highlightedText = highlightedLines
               .slice(1)
               .map((line) => line.innerText.trim())
-              .join(' ');
-            setSelectedFunctionCode(highlightedText);
+              
+            function formatCode(arr) {
+              let formattedCode = '';
+              let lastLineNumber = -1;
+              for (let i = 0; i < arr.length; i++) {
+                  if (arr[i] !== '') {
+                      
+                      if (!isNaN(parseInt(arr[i])) && +arr[i] !== 0) {
+                        const lineNumber = parseInt(arr[i]);
+                        if (lineNumber !== lastLineNumber) {
+                            formattedCode += '\n' + arr[i]
+                            lastLineNumber = lineNumber;
+                        }
+                      } else {
+                          formattedCode += arr[i] + ' ';
+                      }
+                  }
+              }
+              return formattedCode.trim();
+            }
+            const formattedCode = formatCode(highlightedText);
+            console.log(formattedCode,'formatted')
+            setSelectedFunctionCode(formattedCode);
           }
           if (foundFunction) {
             let nextSpan = span.nextElementSibling;

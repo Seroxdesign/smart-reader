@@ -26,7 +26,6 @@ import { ConnectButton} from '../ConnectButton';
 
 
 export const Header = ({ address, setAddress, setFetching }) => {
-  console.log(address)
   const toast = useToast();
   const { setDefaultChain } = useWeb3Modal();
   const {
@@ -48,13 +47,6 @@ export const Header = ({ address, setAddress, setFetching }) => {
     setDefaultChain(mainnet.chainId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-    //TODO: need a way to check if the user is on the right network and switch network to mainnet if not. this just went into an infinite loop
-    useEffect(() => {
-      if (userAddress && (chain?.id !== 1 || chain?.id !== 137)) {
-        switchNetwork(1);
-      }
-    }, [userAddress]);
 
   const [pageName, setPageName] = useState(undefined);
   // useEffect that gets the current url and sets the page name

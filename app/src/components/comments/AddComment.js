@@ -43,7 +43,6 @@ export const AddComment = ({
     // Check if it's expired
     const currentTime = Date.now() / 1000; // in seconds
     if (decodedToken.exp < currentTime) {
-      console.log('Token is expired');
       setIsLoggedIn(false);
       return;
     }
@@ -57,7 +56,6 @@ export const AddComment = ({
       .from('comments')
       .insert([commentToUpload]);
     if (insertError && !insertedData) {
-      console.log('Insert Error: ', insertError);
       return;
     }
     setShowReply(false);

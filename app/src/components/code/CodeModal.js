@@ -78,8 +78,8 @@ export default function CodeModal({
                       <SyntaxHighlighter
                         language="javascript"
                         style={dracula}
-                        wrapLines={false}
-                        wrapLongLines={false}
+                        wrapLines={true}
+                        wrapLongLines={true}
                       >
                         {inspectFunction.code ? inspectFunction.code : ''}
                       </SyntaxHighlighter>

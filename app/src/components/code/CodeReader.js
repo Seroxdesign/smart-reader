@@ -12,8 +12,6 @@ export default function CodeReader({
 
     const handleButtonAdd = (parent, event, remove) => {
       try {
-        const { target } = event;
-
         const highlighted = parent.querySelectorAll('.highlight');
 
         const button = document.createElement('button');
@@ -56,20 +54,20 @@ export default function CodeReader({
 
 
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const codeContainer = document.querySelector('.code-container');
+      if (typeof window === 'undefined') return;
+      const codeContainer = document.querySelector('.code-container');
 
+      if (codeContainer) {
+        codeContainer.addEventListener('mouseover', (event) => buttonAddCallback(handleButtonAdd(codeContainer, event), 250));
+        codeContainer.addEventListener('mouseleave', (event) => buttonAddCallback(handleButtonAdd(codeContainer,event, true), 250));
+      }
+
+      return () => {
         if (codeContainer) {
-            codeContainer.addEventListener('mouseover', (event) => buttonAddCallback(handleButtonAdd(codeContainer, event), 250));
-            codeContainer.addEventListener('mouseleave', (event) => buttonAddCallback(handleButtonAdd(codeContainer,event, true), 250));
+          codeContainer.removeEventListener('mouseover', (event) => buttonAddCallback(codeContainer, event, true));
+          codeContainer.removeEventListener('mouseleave', (event) => buttonAddCallback(codeContainer, event, true));
         }
-
-        return () => {
-            if (codeContainer) {
-                codeContainer.removeEventListener('mouseover', (event) => buttonAddCallback(codeContainer, event, true));
-                codeContainer.removeEventListener('mouseleave', (event) => buttonAddCallback(codeContainer, event, true));
-            }
-        }
+      }
 
     }, []);
 
@@ -96,7 +94,6 @@ export default function CodeReader({
       }}>
         <SyntaxHighlighter
           language="javascript"
-          showLineNumbers={true}
           style={{
             ...dracula,
             display: 'inline-table',

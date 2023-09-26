@@ -1,4 +1,4 @@
-import { Heading, List, Stack, Flex, Avatar, Input, Button, Box } from '@chakra-ui/react';
+import { Heading, List, Stack, Flex, Avatar, Input, Button, Box, useToast } from '@chakra-ui/react';
 import { createClient } from '@supabase/supabase-js';
 import Cookies from 'js-cookie';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -7,7 +7,7 @@ import { Comment } from './Comment';
 import { formatDistanceToNow } from 'date-fns';
 import jwtDecode from 'jwt-decode';
 import useLogin from '../../hooks/useLogin';
-import { ConnectButton, LoginButton } from '../ConnectButton';
+import { ConnectButton } from '../ConnectButton';
 import { lowercaseAddress } from '../../utils/helpers';
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
@@ -23,7 +23,7 @@ export const Comments = ({ chainId, contractAddress }) => {
   } = useAccount();
   const [addr, setAddressFromButton] = useState('');
   const { isLoggedIn, supabase, setIsLoggedIn, checkLoggedIn } = useLogin();
-
+  const toast = useToast();
   // function to make username from wallet address after removing the 0x
   function makeUsername(address) {
     let username = address.slice(2);
@@ -42,7 +42,6 @@ export const Comments = ({ chainId, contractAddress }) => {
       .eq('contract_id', chainId + '-' + contractAddress)
       .is('parent', null);
     if (error) console.log('Error: ', error);
-    console.log({ commentData });
     if (!commentData) return;
     // Map the data into the desired format
     const commentsNew = [];
@@ -77,6 +76,8 @@ export const Comments = ({ chainId, contractAddress }) => {
       return;
     }
 
+    setComment('')
+
     const headers = {
       Authorization: `Bearer ${token}`,
     };
@@ -107,25 +108,22 @@ export const Comments = ({ chainId, contractAddress }) => {
       .from('comments')
       .insert([commentToUpload]);
     if (insertError && !insertedData) {
-      console.log('Insert Error: ', insertError);
       return;
     }
+    toast({
+      title: 'Comment added',
+      description: 'Your comment has been added.',
+      status: 'success',
+      duration: 5000,
+      isClosable: true,
+    })
+  
     getComments();
   }, [comment])
 
 
   return (
     <>
-      {isConnected && (
-        <>
-          {!isLoggedIn && (
-            <Box py={6} px={8} bg="blackAlpha.300" w="full" textAlign="left" borderRadius="lg">
-              <p>Please <LoginButton /> to be able to add a comment</p>
-            </Box>
-          )}
-
-        </>
-      )}
       {isDisconnected && (
         <Box p="xl" bg="blackAlpha.300" w="full" textAlign="left" borderRadius="lg">
           <p>In order to leave a comment, you need to <ConnectButton address={userAddress} setAddress={setAddressFromButton} cta="connect wallet" isSimple /> first.</p>
@@ -135,7 +133,7 @@ export const Comments = ({ chainId, contractAddress }) => {
         <Heading as="h1" size="md" fontWeight={600} noOfLines={1}>
           COMMENTS ({comments.length})
         </Heading>
-        {isLoggedIn && (
+        {isConnected && (
           <Flex
             alignItems="center"
             background="#FFFFFF1A"
@@ -155,7 +153,7 @@ export const Comments = ({ chainId, contractAddress }) => {
               _hover={{ background: '#00000026' }}
               _placeholder={{ color: '#ADADAD' }}
               borderRadius="lg"
-              isDisabled={!isLoggedIn}
+              isDisabled={!isConnected}
             />
             <Button
               borderRadius="full"
@@ -163,7 +161,7 @@ export const Comments = ({ chainId, contractAddress }) => {
               color="#101D42"
               fontWeight={400}
               onClick={addComment}
-              isDisabled={!isLoggedIn}
+              isDisabled={!isConnected}
             >
               Send
             </Button>

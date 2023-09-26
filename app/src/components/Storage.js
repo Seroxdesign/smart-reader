@@ -45,13 +45,11 @@ export const Storage = ({ address, fileName, fileExplanation, network }) => {
       }
     );
     const added = await client.add(file);
-    console.log('added', added);
     setIPFSPath(added.path);
   };
 
   const readUploadedFile = async () => {
     const file = await client.cat(IPFSPath);
-    console.log('file', file);
   };
 
   return (
