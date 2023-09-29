@@ -1,4 +1,3 @@
-import { Flex, Box } from '@chakra-ui/react';
 import './App.css';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import {

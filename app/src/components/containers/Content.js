@@ -30,38 +30,38 @@ import CodeModal from '../code/CodeModal';
 import Intro from '../Intro';
 import { functionMessages, contractMessages, explanation } from '../../utils/constants';
 
+
 export const Content = ({ address, fetching, setFetching }) => {
+
+  // Hook Data
+  const { chain } = useNetwork();
+  const { APIKEY, blockExplorerApi, blockExplorerUrl, ALCHEMY_API_KEY, alchemyUrl } = chainInfo({ chain });
+  const { onCopy, value, setValue, hasCopied } = useClipboard('');
+  const { address: userAddress, isConnected } = useAccount();
+  const { data: signer } = useWalletClient();
+  const mainContentRef = useRef(null);
+  const { supabase } = useSupabase();
+  const toast = useToast();
+  
+  // Contract data state
   const [contractABI, setContractABI] = useState([]);
   const [contractExplanation, setContractExplanation] = useState('');
   const [contractName, setContractName] = useState('No contract');
   const [tokenData, setTokenData] = useState(null)
   const [functionExplanation, setFunctionExplanation] = useState('');
-  const [dependencyExplanation, setDependencyExplanation] = useState('');
   const [explanationError, setExplanationError] = useState('');
   const [highlightedFunction, setHighlightedFunction] = useState(null);
   const [selectedFunctionName, setSelectedFunctionName] = useState(null);
   const [selectedFunctionCode, setSelectedFunctionCode] = useState(null);
-
+  const [highlighted, setHighlighted] = useState(false);
   const [isLoadingContract, setIsLoadingContract] = useState(false);
   const [isLoadingFunction, setIsLoadingFunction] = useState(false);
-  const [isLoadingDependency, setIsLoadingDependency] = useState(false);
   const [sourceCode, setSourceCode] = useState([]);
   const [inspectContract, setInspectContract] = useState();
   const [inspectFunction, setInspectFunction] = useState({
     name: '',
     code: '',
   });
-
-  const { chain } = useNetwork();
-
-  const network = chain?.name?.toLowerCase();
-  const { address: userAddress, isConnected } = useAccount();
-
-  if (!address && userAddress) address = chain.id === 137 ? '0x0000000000000000000000000000000000001010' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-
-  const { data: signer } = useWalletClient();
-  const { APIKEY, blockExplorerApi, blockExplorerUrl, ALCHEMY_API_KEY, alchemyUrl } = chainInfo({ chain });
-  const { onCopy, value, setValue, hasCopied } = useClipboard('');
   const [isFetchingCreator, setIsFetchingCreator] = useState(false);
 
   const [contractCreation, setContractCreation] = useState({
@@ -74,6 +74,10 @@ export const Content = ({ address, fetching, setFetching }) => {
     message: '',
   });
 
+  const network = chain?.name?.toLowerCase();
+  if (!address && userAddress) address = chain.id === 137 ? '0x0000000000000000000000000000000000001010' : '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+
+  // Effects
   useEffect(() => {
     if (address && address.length > 0) {
       validateContractAddress(
@@ -86,10 +90,6 @@ export const Content = ({ address, fetching, setFetching }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, chain?.id]);
 
-
-  const mainContentRef = useRef(null);
-  const { supabase } = useSupabase();
-  const toast = useToast();
 
   useEffect(() => {
     if (sourceCode && sourceCode.length > 0) {
@@ -108,7 +108,7 @@ export const Content = ({ address, fetching, setFetching }) => {
     }
   }, [sourceCode, chain?.id]);
 
-
+  // Utility functions for contracts and explanations
   const fetchExplanation = useCallback(
     async (dep, code, type, arrayId = '') => {
 
@@ -139,14 +139,10 @@ export const Content = ({ address, fetching, setFetching }) => {
           }
         } else if (type === explanation.dependency) {
           requiredField = 'dependency_explanations';
-          setIsLoadingDependency(true);
           if (
             supabaseResponse[0][requiredField] !== null &&
             supabaseResponse[0][requiredField][arrayId] != null
           ) {
-            console.log('Contract explanation exists');
-            setDependencyExplanation(supabaseResponse[0][requiredField][code]);
-            setIsLoadingDependency(false);
             fileExplanationSuccess = true;
           }
         } else {
@@ -172,7 +168,6 @@ export const Content = ({ address, fetching, setFetching }) => {
         } else if (type === explanation.dependency) {
           requiredField = 'dependency_explanations';
           content = `Give me a simple explanation of the following solidity file or dependency: ${code}`;
-          setIsLoadingDependency(true);
         } else {
           requiredField = 'function_explanations';
           content = `Give me a simple explanation of the following solidity code: ${code}`;
@@ -220,7 +215,6 @@ export const Content = ({ address, fetching, setFetching }) => {
               setContractExplanation(data.choices[0].message.content);
               setIsLoadingContract(false);
               // insert the new explanation into the database
-              console.log('updating database');
               contract['dependency_explanations'] =
                 data.choices[0].message.content;
               const { data: updatedData, error: updateError } = await supabase
@@ -228,17 +222,10 @@ export const Content = ({ address, fetching, setFetching }) => {
                 .update(contract)
                 .eq('contract_id', id);
               // Handle error during update
-
               if (updateError && !updatedData) {
-                console.log('Update Error: ', updateError);
                 return;
               }
-
-              console.log('Item updated!', updatedData);
-
             } else if (type === explanation.dependency) {
-              console.log('data.choices[0]', data.choices[0]);
-              setDependencyExplanation(data.choices[0].message.content);
               contract[requiredField] = supabaseResponse[0][requiredField];
               if (contract.requiredField === null) {
                 contract[requiredField] = {};
@@ -255,9 +242,6 @@ export const Content = ({ address, fetching, setFetching }) => {
                 console.log('Update Error: ', updateError);
                 return;
               }
-
-              console.log('Item updated!', updatedData);
-              setIsLoadingDependency(false);
             } else {
               setFunctionExplanation(data.choices[0].message.content);
               // contract[requiredField] = supabaseResponse[0][requiredField];
@@ -287,7 +271,6 @@ export const Content = ({ address, fetching, setFetching }) => {
           .catch((err) => {
             setIsLoadingContract(false);
             setIsLoadingFunction(false);
-            setIsLoadingDependency(false);
             setExplanationError(err.message);
             console.log('open ai fetch error', err);
           });
@@ -395,28 +378,16 @@ export const Content = ({ address, fetching, setFetching }) => {
         .update(item)
         .eq(idName, id);
       // Handle error during update
-
-      if (updateError && !updatedData) {
-        console.log('Update Error: ', updateError);
-        return;
-      }
-
-      console.log('Item updated!', updatedData);
+      if (updateError && !updatedData) return;
     }
     // If the item does not exist, insert it
     else {
-      console.log('Item does not exist');
       const item = await createFunction();
       const { data: insertedData, error: insertError } = await supabase
         .from(database)
         .insert([item]);
       // Handle error during insert
-      if (insertError && !insertedData) {
-        console.log('Insert Error: ', insertError);
-        return;
-      }
-
-      console.log('Item inserted!', insertedData);
+      if (insertError && !insertedData) return;
     }
   }
 
@@ -463,15 +434,9 @@ export const Content = ({ address, fetching, setFetching }) => {
     );
   }, [address, blockExplorerApi, chain, APIKEY]);
 
-  useEffect(() => {
-    if (address) {
-      setFetching(true);
-      fetchCreatorAndCreation(address);
-    }
-  }, [address, fetchCreatorAndCreation]);
+
 
   const fetchTokenData = useCallback(async (address) => {
-    console.log('fetching token data', address, chain?.id, alchemyUrl, ALCHEMY_API_KEY)
     try {
         const apiUrl = `${alchemyUrl}${ALCHEMY_API_KEY}`;
         if (!address) return null;
@@ -491,23 +456,20 @@ export const Content = ({ address, fetching, setFetching }) => {
         }
 
         const res = await axios(options);
-        const { name, logo, symbol } = res.data.result;
-        console.log({name, logo, symbol});
-        //   setContractName(name);
+        const { name, logo, symbol } = res?.data?.result;
         setTokenData({
             name,
             logo,
             symbol,
         });
     } catch (error) {
-        console.log('Alchemy error', error);
-        toast({
-            title: 'Error',
-            description: error.message,
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-        });
+        // toast({
+        //     title: 'Error',
+        //     description: error.message,
+        //     status: 'error',
+        //     duration: 5000,
+        //     isClosable: true,
+        // });
         setContractName('Unknown');
     }
 }, [ALCHEMY_API_KEY, alchemyUrl, chain?.id, toast]);
@@ -530,10 +492,7 @@ export const Content = ({ address, fetching, setFetching }) => {
           let sourceObj;
           let contracts;
           let contractsArray;
-          console.log('seeee', resp.data.result[0])
           if (resp.data.result[0].Implementation) {
-            const message = `This is an implementation address, using the proxy address instead. ${resp.data.result[0].Implementation}`;
-            console.log(message);
             resp = await axios.get(
               `https://${blockExplorerApi}?module=contract&action=getsourcecode&address=${resp.data.result[0].Implementation}&apikey=${APIKEY}`
             );
@@ -562,9 +521,6 @@ export const Content = ({ address, fetching, setFetching }) => {
           );
           const addressABI = JSON.parse(resp.data.result[0].ABI);
 
-          // setContractABI(addressABI);
-          // setSourceCode(contractsArray);
-
           const contract = {
             contract_id: chain.id + '-' + address,
             source_code: contractsArray,
@@ -576,7 +532,6 @@ export const Content = ({ address, fetching, setFetching }) => {
             contractsArray[0].sourceCode.content,
             explanation.contract
           );
-          // console.log('name', contractsArray[0].name);
           setFetching(false);
           toast({
             title: 'Contract found',
@@ -600,16 +555,6 @@ export const Content = ({ address, fetching, setFetching }) => {
       }
     );
   }, [address]);
-
-  useEffect(() => {
-    setExplanationError('');
-    setContractExplanation('');
-
-
-      fetchTokenData(address);
-      fetchSourceCode();
-    
-  }, [fetching, fetchSourceCode, setFetching, address, chain?.id, fetchTokenData]);
 
   const handleContractChange = useCallback(
     async (e) => {
@@ -638,11 +583,20 @@ export const Content = ({ address, fetching, setFetching }) => {
 
   const handleCodeHover = useCallback(
     (event) => {
+      setHighlighted(true);
       const codeNode = event.target;
       const lineNode = codeNode.parentElement;
-
+      const regexToRemoveSolidity = /\/\/\s*SPDX-License-Identifier:\s*MIT[\s\S]*?pragma solidity\s+\d+(\.\d+){0,2}\s*;/g;
+      const regexToRemoveComments = /\/\*\*[\s\S]*?\*\//g;
+      const stringWithoutSolidity = inspectContract?.sourceCode?.content.replace(regexToRemoveSolidity, '');
+      const stringWithoutComments = stringWithoutSolidity?.replace(regexToRemoveComments, '');
+      const stringToSplit = stringWithoutComments || stringWithoutSolidity || inspectContract?.sourceCode?.content;
+      const functionsArray = stringToSplit?.split(/(?=function)/);
+      // Remove the first empty element (as split() would create an empty element at the start)
+      functionsArray?.shift();
       if (lineNode.nodeName === 'SPAN') {
         const childSpans = lineNode.querySelectorAll('span');
+
         childSpans.forEach((span, i) => {
           let foundFunction = false;
           if (span.innerText.includes('function')) {
@@ -650,7 +604,6 @@ export const Content = ({ address, fetching, setFetching }) => {
             const codeBlock = lineNode.closest('pre');
             const codeLines = codeBlock.querySelectorAll('span');
             const startIndex = Array.from(codeLines).indexOf(lineNode);
-            console.log('startIndex', startIndex);
             const closingBraceRegex = /}(\s)*$/;
             let endIndex = startIndex;
             while (!closingBraceRegex.test(codeLines[endIndex].innerText)) {
@@ -668,29 +621,13 @@ export const Content = ({ address, fetching, setFetching }) => {
             const highlightedText = highlightedLines
               .slice(1)
               .map((line) => line.innerText.trim())
-              
-            function formatCode(arr) {
-              let formattedCode = '';
-              let lastLineNumber = -1;
-              for (let i = 0; i < arr.length; i++) {
-                  if (arr[i] !== '') {
-                      
-                      if (!isNaN(parseInt(arr[i])) && +arr[i] !== 0) {
-                        const lineNumber = parseInt(arr[i]);
-                        if (lineNumber !== lastLineNumber) {
-                            formattedCode += '\n' + arr[i]
-                            lastLineNumber = lineNumber;
-                        }
-                      } else {
-                          formattedCode += arr[i] + ' ';
-                      }
-                  }
+
+            functionsArray?.forEach((func, i) => {
+              if (highlightedText.join('').slice(0, 20) === func.replace(/\s/g, "").slice(0, 20)) {
+                
+                setSelectedFunctionCode(func)
               }
-              return formattedCode.trim();
-            }
-            const formattedCode = formatCode(highlightedText);
-            console.log(formattedCode,'formatted')
-            setSelectedFunctionCode(formattedCode);
+            })
           }
           if (foundFunction) {
             let nextSpan = span.nextElementSibling;
@@ -783,6 +720,21 @@ export const Content = ({ address, fetching, setFetching }) => {
     explanation.function,
   ]);
 
+  useEffect(() => {
+    if (address) {
+      setFetching(true);
+      fetchCreatorAndCreation(address);
+    }
+  }, [address, fetchCreatorAndCreation]);
+
+
+  useEffect(() => {
+    setExplanationError('');
+    setContractExplanation('');
+    fetchTokenData(address);
+    fetchSourceCode();
+  }, [fetching, fetchSourceCode, setFetching, address, chain?.id, fetchTokenData]);
+
   return (
     <Stack
       h={!userAddress ? "calc(100vh - 130px)" : "full"}
@@ -803,49 +755,50 @@ export const Content = ({ address, fetching, setFetching }) => {
       {!userAddress ? (
         <Intro />
       ) : (
-          <>
-      <ContractMetaData
-        contractName={contractName}
-        validationResult={validationResult}
-        address={address}
-        userAddress={userAddress}
-        setValue={setValue}
-        onCopy={onCopy}
-        hasCopied={hasCopied}
-        blockExplorerUrl={blockExplorerUrl}
-        contractCreation={contractCreation}
-        isFetchingCreator={isFetchingCreator}
-        value={value}
-        tokenData={tokenData}
-      />
-      <Files
-        sourceCode={sourceCode}
-        selectedContract={contractName}
-        handleClick={handleContractChange}
-      />
-      <Flex
-        direction={{ base: 'column', lg: 'row' }}
-        alignItems="center"
-        w="full"
-        h={{ base: 'full', lg: 'lg' }}
-      >
-        <CodeReader
-          inspectContract={inspectContract}
-          handleCodeHover={handleCodeHover}
-          handleCodeClick={handleCodeClick}
-          id={`${chain?.id}-${address}`}
-        />
-        <CodeExplanation
-          contractExplanation={contractExplanation}
-          isLoadingContract={isLoadingContract}
-          explanationError={explanationError}
-          mainContentRef={mainContentRef}
-          contractMessages={contractMessages}
-        />
-      </Flex>
+        <>
+          <ContractMetaData
+            contractName={contractName}
+            validationResult={validationResult}
+            address={address}
+            userAddress={userAddress}
+            setValue={setValue}
+            onCopy={onCopy}
+            hasCopied={hasCopied}
+            blockExplorerUrl={blockExplorerUrl}
+            contractCreation={contractCreation}
+            isFetchingCreator={isFetchingCreator}
+            value={value}
+            tokenData={tokenData}
+          />
+          <Files
+            sourceCode={sourceCode}
+            selectedContract={contractName}
+            handleClick={handleContractChange}
+          />
+          <Flex
+            direction={{ base: 'column', lg: 'row' }}
+            alignItems="center"
+            w="full"
+            h={{ base: 'full', lg: 'lg' }}
+          >
+            <CodeReader
+              inspectContract={inspectContract}
+              handleCodeHover={handleCodeHover}
+              handleCodeClick={handleCodeClick}
+              id={`${chain?.id}-${address}`}
+              setHighlighted={setHighlighted}
+            />
+            <CodeExplanation
+              contractExplanation={contractExplanation}
+              isLoadingContract={isLoadingContract}
+              explanationError={explanationError}
+              mainContentRef={mainContentRef}
+              contractMessages={contractMessages}
+            />
+          </Flex>
 
-      {address !== '' && <Comments chainId={chain?.id} contractAddress={address} />}
-            </>
+          {address !== '' && <Comments chainId={chain?.id} contractAddress={address} />}
+        </>
       )}
 
       <Modal isOpen={isOpenAnnotation} onClose={onCloseAnnotation}>
