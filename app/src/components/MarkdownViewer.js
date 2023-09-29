@@ -29,7 +29,7 @@ const heading = (props) => {
 };
 
 const markdownTheme = {
-  a: ({ href, ...props }) => <Link isExternal href={href ?? '#'} {...props} />,
+  a: ({ href, ...props }) => <Link href={href ?? '#'} {...props} />,
   h1: heading,
   h2: heading,
   h3: heading,
