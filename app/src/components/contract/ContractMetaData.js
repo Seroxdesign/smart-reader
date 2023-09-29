@@ -54,7 +54,6 @@ export default function ContractMetaData({
               href={`${blockExplorerUrl}/address/${address}`}
               fontSize="sm"
               color="link"
-              isExternal
             >
               {isMobile ? shortenAddress(address) : address}
             </Link>
@@ -102,7 +101,6 @@ export default function ContractMetaData({
             href={`${blockExplorerUrl}/address/${lowercaseCreator}`}
             fontSize="sm"
             color="link"
-            isExternal
           >
             {lowercaseCreator}
           </h3>
@@ -112,7 +110,6 @@ export default function ContractMetaData({
             href={`${blockExplorerUrl}/address/${lowercaseTxn.slice(lowercaseTxn.lastIndexOf('_', -1))}`}
             fontSize="sm"
             color="link"
-            isExternal
           >
             {isMobile ? shortenAddress(lowercaseTxn) : lowercaseTxn}
           </Link>
