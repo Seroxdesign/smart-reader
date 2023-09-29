@@ -8,6 +8,7 @@ export default function CodeReader({
   inspectContract,
   handleCodeHover,
   handleCodeClick,
+  setHighlighted,
 }) {
 
     const handleButtonAdd = (parent, event, remove) => {
@@ -81,6 +82,7 @@ export default function CodeReader({
       borderTopLeftRadius="lg"
       borderBottomLeftRadius="lg"
       onMouseOver={(event) => handleCodeHover(event)}
+      onMouseOut={() => setHighlighted(false)}
     >
       <Heading as="h3" size="md" noOfLines={1} pb={8}>
         SOURCE CODE
