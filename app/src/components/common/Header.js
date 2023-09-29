@@ -180,7 +180,7 @@ export const Header = ({ address, setAddress, setFetching }) => {
         <RouterLink to="/about">
           About
         </RouterLink>
-        <ConnectButton address={address} setAddress={setAddress} />
+        <ConnectButton />
       </Flex>
     </Flex>
   );

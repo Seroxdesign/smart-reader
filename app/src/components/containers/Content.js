@@ -13,8 +13,6 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import SyntaxHighlighter from 'react-syntax-highlighter';
-import { dracula } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { useAccount, useNetwork, useWalletClient } from 'wagmi';
 import chainInfo from '../../utils/chainInfo';
 import { contractsDatabase } from '../../utils/constants';

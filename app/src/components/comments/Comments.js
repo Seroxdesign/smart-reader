@@ -124,11 +124,11 @@ export const Comments = ({ chainId, contractAddress }) => {
 
   return (
     <>
-      {isDisconnected && (
+      {/* {isDisconnected && (
         <Box p="xl" bg="blackAlpha.300" w="full" textAlign="left" borderRadius="lg">
-          <p>In order to leave a comment, you need to <ConnectButton address={userAddress} setAddress={setAddressFromButton} cta="connect wallet" isSimple /> first.</p>
+          <p>In order to leave a comment, you need to <ConnectButton /> first.</p>
         </Box>
-      )}
+      )} */}
       <Stack gap={4}>
         <Heading as="h1" size="md" fontWeight={600} noOfLines={1}>
           COMMENTS ({comments.length})

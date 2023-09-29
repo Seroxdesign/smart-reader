@@ -12,12 +12,8 @@ function SupabaseProvider({ children }) {
   const [token, setToken] = useState(null);
   const [supabase, setSupabase] = useState(supabaseNew);
 
-  // setSupabase(supabaseNew);
-
   useEffect(() => {
-    console.log('New token', token);
     if (!token) {
-      console.log('token is null');
       return;
     }
     const newSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -28,13 +24,6 @@ function SupabaseProvider({ children }) {
     newSupabase.realtime.accessToken = token;
     setSupabase(newSupabase);
   }, [token]);
-  // Update headers whenever the token changes
-  // useEffect(() => {
-  //   console.log('New token', token);
-  //   if (token) {
-  //     supabase.realtime.accessToken = token;
-  //   }
-  // }, [token]);
 
   return (
     <SupabaseContext.Provider value={{ supabase, setToken }}>

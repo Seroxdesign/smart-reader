@@ -3,7 +3,6 @@ import { useCallback, useState } from 'react';
 import { useAccount } from 'wagmi';
 import postData from '../utils/api.js';
 import { useSupabase } from '../utils/supabaseContext';
-// import { Button, Spinner } from '@chakra-ui/react';
 import jwtDecode from 'jwt-decode';
 import { setCookie, removeCookie } from 'typescript-cookie';
 import { useSignMessage } from 'wagmi';
@@ -11,41 +10,31 @@ import { useToast } from '@chakra-ui/react';
 import { errorHandler } from '../utils/helpers';
 
 const useLogin = () => {
-    const [message, setMessage] = useState(
-        `I am signing this message to authenticate my address with my account on Smart Reader.` // TODO could add nonce for extra security
-    );
+    const message = `I am signing this message to authenticate my address with my account on Smart Reader.` // TODO could add nonce for extra security
     const { signMessageAsync } = useSignMessage({
         message,
     });
     const { supabase, setToken } = useSupabase();
-
     const { address: userAddress } = useAccount();
-
-    const toast = useToast();
-
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const toast = useToast();
 
     const checkLoggedIn = useCallback(() => {
         const token = Cookies.get('supabasetoken');
         if (!token) {
             // Prompt the user to log in or sign up.
-            console.log('No token found');
             setIsLoggedIn(false);
             return false;
         } else {
             // Use Supabase client to set the session:
-
             const decodedToken = jwtDecode(token);
             // Check if it's expired
             const currentTime = Date.now() / 1000; // in seconds
             if (decodedToken.exp < currentTime) {
-                console.log('Token is expired');
                 setIsLoggedIn(false);
-
                 return false;
             } else {
-                console.log('Token is valid');
                 setIsLoggedIn(true);
                 return true;
             }
@@ -55,7 +44,7 @@ const useLogin = () => {
     async function login() {
         try {
             setIsLoggingIn(true);
-
+            // get nonce from api/nonce
             const nonce = await postData(
                 process.env.REACT_APP_EDGE_FUNCTIONS_BASE_URL + 'nonce',
                 {
@@ -74,10 +63,9 @@ const useLogin = () => {
                 }
             );
             const token = loginResponse.token;
-            setCookie('supabasetoken', loginResponse.token);
+            setCookie('supabasetoken', token);
             setIsLoggingIn(false);
             setIsLoggedIn(true);
-            setToken(token);
         } catch (error) {
             console.log('error', error);
             setIsLoggedIn(false);
