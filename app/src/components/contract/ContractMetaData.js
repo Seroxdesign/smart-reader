@@ -1,5 +1,19 @@
-import React, { useEffect } from 'react'
-import { Stack, Flex, Heading, Image, Link, Button, Spinner, Text, Tooltip, useToast, useClipboard, useBreakpoint } from '@chakra-ui/react';
+import React, { useEffect } from 'react';
+import {
+  Stack,
+  Flex,
+  Heading,
+  Image,
+  Link,
+  Button,
+  Spinner,
+  Text,
+  Tooltip,
+  useToast,
+  useClipboard,
+  useBreakpoint,
+  useMediaQuery,
+} from '@chakra-ui/react';
 import { shortenAddress, lowercaseAddress } from '../../utils/helpers';
 import { CopyIcon } from '@chakra-ui/icons';
 
@@ -14,12 +28,14 @@ export default function ContractMetaData({
   tokenData,
 }) {
   const { onCopy, value, setValue, hasCopied } = useClipboard('');
-    const toast = useToast();
-    const isMobile = useBreakpoint({ base: true, lg: false });
-    const { creator, creationTxn } = contractCreation;
-    const lowercaseCreator = lowercaseAddress(creator);
-    const lowercaseTxn = lowercaseAddress(creationTxn);
-  console.log('token data', tokenData)
+  const toast = useToast();
+  const breakpoint = useBreakpoint({ base: true, lg: false });
+  const isMobile =
+    breakpoint === 'base' || breakpoint === 'sm' || breakpoint === 'md';
+  const { creator, creationTxn } = contractCreation;
+  const lowercaseCreator = lowercaseAddress(creator);
+  const lowercaseTxn = lowercaseAddress(creationTxn);
+  console.log('token data', tokenData);
   useEffect(() => {
     if (hasCopied) {
       toast({
@@ -28,7 +44,7 @@ export default function ContractMetaData({
         status: 'success',
         duration: 5000,
         isClosable: true,
-      })
+      });
     }
   }, [hasCopied, value]);
 
@@ -41,7 +57,11 @@ export default function ContractMetaData({
   return (
     <Stack>
       <Flex alignItems="center" gap={2}>
-        <Image src={tokenData?.logo ? tokenData.logo : '/images/document.svg'} w={30} h={30} />
+        <Image
+          src={tokenData?.logo ? tokenData.logo : '/images/document.svg'}
+          w={30}
+          h={30}
+        />
         {/* This should be the name of the contract address the user plugs in */}
         <Heading as="h1" size="lg" fontWeight={600} noOfLines={1}>
           {tokenData?.name && `${tokenData?.name}:`} {contractName}
@@ -77,8 +97,8 @@ export default function ContractMetaData({
             {!userAddress
               ? 'Connect your wallet'
               : !validationResult.result
-                ? 'No valid address'
-                : 'No contract selected'}
+              ? 'No valid address'
+              : 'No contract selected'}
           </Text>
         )}
       </Flex>
@@ -93,21 +113,20 @@ export default function ContractMetaData({
       )}
 
       {!isFetchingCreator &&
-        contractCreation &&
-        contractCreation.creator !== '' &&
-        validationResult.result ? (
+      contractCreation &&
+      contractCreation.creator !== '' &&
+      validationResult.result ? (
         <Flex gap={1}>
-          <h3
+          <Link
             href={`${blockExplorerUrl}/address/${lowercaseCreator}`}
             fontSize="sm"
             color="link"
           >
-            {lowercaseCreator}
-          </h3>
+            {isMobile ? shortenAddress(lowercaseCreator) : lowercaseCreator}
+          </Link>
           <Text fontSize="sm">at txn</Text>
           <Link
-          //@todo fix this
-            href={`${blockExplorerUrl}/address/${lowercaseTxn.slice(lowercaseTxn.lastIndexOf('_', -1))}`}
+            href={`${blockExplorerUrl}/tx/${lowercaseTxn}`}
             fontSize="sm"
             color="link"
           >
@@ -119,10 +138,10 @@ export default function ContractMetaData({
           {!userAddress
             ? 'Connect your wallet'
             : !validationResult.result
-              ? 'No valid address'
-              : 'No contract selected'}
+            ? 'No valid address'
+            : 'No contract selected'}
         </Text>
       )}
     </Stack>
-  )
+  );
 }

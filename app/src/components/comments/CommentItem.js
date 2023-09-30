@@ -1,13 +1,13 @@
 import { AddIcon, MinusIcon } from '@chakra-ui/icons';
 import {
-	Avatar,
-	Button,
-	Flex,
-	IconButton,
-	Link,
-	ListItem,
-	Stack,
-	Text,
+  Avatar,
+  Button,
+  Flex,
+  IconButton,
+  Link,
+  ListItem,
+  Stack,
+  Text,
 } from '@chakra-ui/react';
 import { Reply } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -24,11 +24,8 @@ const CommentItem = ({
   const [upvotes, setUpvotes] = useState([]);
   const [downvotes, setDownvotes] = useState([]);
   const { supabase } = useSupabase();
-  const {
-    address: user,
-    isConnected,
-  } = useAccount();
-  
+  const { address: user, isConnected } = useAccount();
+
   const userAddress = lowercaseAddress(user || '');
 
   async function upvote() {
@@ -44,7 +41,9 @@ const CommentItem = ({
         // Handle 406 error, i.e., create object if it doesn't exist
         await supabase
           .from('votes')
-          .insert([{ id: id, upvotes: [userAddress.toLowerCase()], downvotes: [] }]);
+          .insert([
+            { id: id, upvotes: [userAddress.toLowerCase()], downvotes: [] },
+          ]);
         const { error: insertError } = await supabase
           .from('votes')
           .insert([{ id: id, upvotes: [], downvotes: [] }]);
@@ -168,7 +167,7 @@ const CommentItem = ({
       return {
         upvotes: data.upvotes,
         downvotes: data.downvotes,
-      }
+      };
     } catch (err) {
       console.error('Error getting upvotes:', err);
       return 0;
@@ -209,7 +208,7 @@ const CommentItem = ({
           disabled={upvotes.length && upvotes?.includes(userAddress)}
           onClick={upvote}
         />
-        <Text fontSize="md" fontWeight="medium" mr={2}>
+        <Text fontSize="md" fontWeight="medium">
           {upvotes.length - downvotes.length}
         </Text>
         <IconButton
