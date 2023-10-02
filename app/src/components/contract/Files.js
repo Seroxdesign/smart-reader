@@ -26,7 +26,7 @@ export const Files = ({ sourceCode, selectedContract, handleClick }) => {
               const contractName = contract.name;
               const file = {
                 name: contractName,
-                selected: contractName === selectedContract,
+                selected: contractName.indexOf(selectedContract) >= 0,
                 dependency: true,
               };
               return (
